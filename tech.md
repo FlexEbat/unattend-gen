@@ -551,6 +551,8 @@ CONTRACT GAP
 
 ### Слайс 3 — CLI end-to-end
 
+**Статус: выполнено.**
+
 **Файлы:** `internal/cli/generate.go`, доработка `validate.go` и `profile.go` (пресетов пока нет — только значения по умолчанию).
 
 **Что делает:** `unattend-gen generate <profile.json> [-o PATH]` читает профиль, валидирует, при успехе пишет `autounattend.xml` и печатает путь; при ошибке ничего не пишет и печатает список ошибок.
