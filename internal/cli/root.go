@@ -3,7 +3,10 @@ package cli
 
 import "github.com/spf13/cobra"
 
-func newRootCmd() *cobra.Command {
+// NewRootCmd builds the unattend-gen command tree. Exported so tests can
+// call it directly and redirect SetArgs/SetOut/SetErr without going through
+// os.Args or the process's real stdout/stderr.
+func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "unattend-gen",
 		Short:         "Generate Windows autounattend.xml answer files",
@@ -12,10 +15,11 @@ func newRootCmd() *cobra.Command {
 	}
 	root.AddCommand(newProfileCmd())
 	root.AddCommand(newValidateCmd())
+	root.AddCommand(newGenerateCmd())
 	return root
 }
 
 // Execute runs the unattend-gen CLI.
 func Execute() error {
-	return newRootCmd().Execute()
+	return NewRootCmd().Execute()
 }
