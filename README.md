@@ -13,12 +13,6 @@ The tool ships as a single static binary for Linux, macOS and Windows. It
 runs offline: no server, no network calls, no authentication. Profiles are
 plain JSON files on disk.
 
-## Status
-
-Under active development, built slice by slice per `tech.md`. Current stage:
-scaffold (module layout, `Profile` schema, validation, minimal XML skeleton,
-`profile init`/`profile list`/`validate` commands).
-
 ## Build
 
 ```sh
@@ -43,6 +37,3 @@ unattend-gen validate demo.json  # checks a profile, exit code 0 or 1
 ```sh
 make gate   # gofmt check, go vet, golangci-lint, go test -race
 ```
-
-See `tech.md` for the full contract: data model, package layout, CLI
-commands, TUI screens, validation rules and the slice-by-slice roadmap.

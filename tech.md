@@ -474,6 +474,8 @@ CONTRACT GAP
 
 ### Слайс 0 — каркас
 
+**Статус: выполнено.**
+
 **Что собрать:**
 
 - Модуль Go (`go.mod`), зависимости: `spf13/cobra`, `charmbracelet/bubbletea`, `charmbracelet/bubbles`, `charmbracelet/lipgloss`, `go-playground/validator/v10`.
@@ -502,6 +504,8 @@ CONTRACT GAP
 
 ### Слайс 1 — язык и edition (эталон)
 
+**Статус: выполнено.**
+
 Это эталонная вертикаль. Слайсы 2–4 повторяют её структуру: поле в `Profile` → правило в `validate.go` → компонент в `xmlgen/components/` → проверка через CLI.
 
 **Файлы:** `internal/xmlgen/components/international.go`, `internal/xmlgen/components/setup.go`, правила в `internal/profile/validate.go` для `Language` и `Edition`.
@@ -523,6 +527,8 @@ CONTRACT GAP
 ---
 
 ### Слайс 2 — имя компьютера и учётные записи
+
+**Статус: выполнено.**
 
 **Файлы:** `internal/xmlgen/components/shellsetup.go`, правила в `internal/profile/validate.go` для `ComputerName`, `Accounts`, `FirstLogon`.
 
