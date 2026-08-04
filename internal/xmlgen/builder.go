@@ -57,7 +57,14 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "windowsPE", Components: winPE})
 
 	specialize := []interface{}{components.NewInternationalCore(p.Language)}
+	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName); shellSpecialize != nil {
+		specialize = append(specialize, shellSpecialize)
+	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
+
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon); shellOOBE != nil {
+		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
+	}
 
 	body, err := xml.MarshalIndent(doc, "", "  ")
 	if err != nil {
