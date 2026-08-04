@@ -51,4 +51,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: amd64
           CGO_ENABLED: 0
-        run: go build -o /dev/null ./cmd/unattend-gen
+        run: |
+          ext=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
+          go build -o "${{ runner.temp }}/unattend-gen$ext" ./cmd/unattend-gen
