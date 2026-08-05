@@ -48,7 +48,7 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "ctrl+r":
-			return w, Navigate(Review)
+			return w, Navigate(ScreenReview)
 		case "enter":
 			if w.creatingNew {
 				name := w.nameInput.Value()
@@ -57,7 +57,7 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return w, nil
 				}
 				w.profile.Name = name
-				return w, Navigate(Language)
+				return w, Navigate(ScreenLanguage)
 			}
 			switch w.choices.Value() {
 			case newProfileValue, "":
@@ -70,7 +70,7 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return w, nil
 				}
 				*w.profile = *loaded
-				return w, Navigate(Language)
+				return w, Navigate(ScreenLanguage)
 			}
 		}
 	}

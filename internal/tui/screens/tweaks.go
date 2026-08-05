@@ -98,13 +98,13 @@ func (t Tweaks) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return t, nil
 		case "ctrl+n":
 			t.sync()
-			return t, Navigate(Wifi)
+			return t, Navigate(ScreenWifi)
 		case "esc":
 			t.sync()
-			return t, Navigate(Accounts)
+			return t, Navigate(ScreenAccounts)
 		case "ctrl+r":
 			t.sync()
-			return t, Navigate(Review)
+			return t, Navigate(ScreenReview)
 		}
 	}
 

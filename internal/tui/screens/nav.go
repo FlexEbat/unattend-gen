@@ -16,12 +16,12 @@ import (
 type ID int
 
 const (
-	Welcome ID = iota
-	Language
-	Accounts
-	Tweaks
-	Wifi
-	Review
+	ScreenWelcome ID = iota
+	ScreenLanguage
+	ScreenAccounts
+	ScreenTweaks
+	ScreenWifi
+	ScreenReview
 )
 
 // NavigateMsg asks the root app model to switch the active screen.

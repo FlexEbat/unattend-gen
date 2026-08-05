@@ -199,13 +199,13 @@ func (a Accounts) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "ctrl+n":
 			a.sync()
-			return a, Navigate(Tweaks)
+			return a, Navigate(ScreenTweaks)
 		case "esc":
 			a.sync()
-			return a, Navigate(Language)
+			return a, Navigate(ScreenLanguage)
 		case "ctrl+r":
 			a.sync()
-			return a, Navigate(Review)
+			return a, Navigate(ScreenReview)
 		}
 	}
 

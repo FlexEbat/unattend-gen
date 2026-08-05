@@ -50,13 +50,13 @@ func (w Wifi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return w, nil
 		case "ctrl+n":
 			w.sync()
-			return w, Navigate(Review)
+			return w, Navigate(ScreenReview)
 		case "esc":
 			w.sync()
-			return w, Navigate(Tweaks)
+			return w, Navigate(ScreenTweaks)
 		case "ctrl+r":
 			w.sync()
-			return w, Navigate(Review)
+			return w, Navigate(ScreenReview)
 		}
 	}
 	return w, nil
