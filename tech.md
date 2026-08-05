@@ -617,6 +617,8 @@ CONTRACT GAP
 
 ### Слайс 6 — Wi-Fi
 
+**Статус: выполнено.**
+
 Слайс не трогает `Accounts`, `Language`, `Edition` и их компоненты.
 
 **Файлы:** `internal/xmlgen/components/wlan.go`, правила в `internal/profile/validate.go` для `Wifi`, экран `internal/tui/screens/wifi.go` (уже создан в слайсе 5 как заглушка — здесь получает логику).
