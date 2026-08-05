@@ -86,7 +86,7 @@ func TestAppInvalidValueBlocksReview(t *testing.T) {
 	if !ok {
 		t.Fatalf("final model is not tui.Model")
 	}
-	if final.current == screens.Review {
+	if final.current == screens.ScreenReview {
 		t.Fatal("expected navigation to review to be blocked by validation")
 	}
 	if final.err == "" {

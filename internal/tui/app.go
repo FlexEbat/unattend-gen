@@ -40,14 +40,14 @@ func NewModel(initial *profile.Profile) Model {
 
 	return Model{
 		profile: initial,
-		current: screens.Welcome,
+		current: screens.ScreenWelcome,
 		screens: map[screens.ID]tea.Model{
-			screens.Welcome:  screens.NewWelcome(initial),
-			screens.Language: screens.NewLanguage(initial),
-			screens.Accounts: screens.NewAccounts(initial),
-			screens.Tweaks:   screens.NewTweaks(initial),
-			screens.Wifi:     screens.NewWifi(initial),
-			screens.Review:   screens.NewReview(initial),
+			screens.ScreenWelcome:  screens.NewWelcome(initial),
+			screens.ScreenLanguage: screens.NewLanguage(initial),
+			screens.ScreenAccounts: screens.NewAccounts(initial),
+			screens.ScreenTweaks:   screens.NewTweaks(initial),
+			screens.ScreenWifi:     screens.NewWifi(initial),
+			screens.ScreenReview:   screens.NewReview(initial),
 		},
 	}
 }
@@ -70,10 +70,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.screens[m.current] = updated
 
 	if nav, ok := extractNavigate(cmd); ok {
-		if nav.To == screens.Review {
+		if nav.To == screens.ScreenReview {
 			if errs := screens.ValidateForReview(m.profile); len(errs) > 0 {
 				m.err = errs[0]
-				m.screens[screens.Review] = screens.NewReview(m.profile)
+				m.screens[screens.ScreenReview] = screens.NewReview(m.profile)
 				return m, nil
 			}
 		}
@@ -90,15 +90,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // reflects the latest data, including changes made on other screens.
 func rebuildScreen(id screens.ID, p *profile.Profile) tea.Model {
 	switch id {
-	case screens.Welcome:
+	case screens.ScreenWelcome:
 		return screens.NewWelcome(p)
-	case screens.Language:
+	case screens.ScreenLanguage:
 		return screens.NewLanguage(p)
-	case screens.Accounts:
+	case screens.ScreenAccounts:
 		return screens.NewAccounts(p)
-	case screens.Tweaks:
+	case screens.ScreenTweaks:
 		return screens.NewTweaks(p)
-	case screens.Wifi:
+	case screens.ScreenWifi:
 		return screens.NewWifi(p)
 	default:
 		return screens.NewReview(p)

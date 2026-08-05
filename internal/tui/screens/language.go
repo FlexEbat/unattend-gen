@@ -130,13 +130,13 @@ func (l Language) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return l, cmd
 		case "ctrl+n":
 			l.sync()
-			return l, Navigate(Accounts)
+			return l, Navigate(ScreenAccounts)
 		case "esc":
 			l.sync()
-			return l, Navigate(Welcome)
+			return l, Navigate(ScreenWelcome)
 		case "ctrl+r":
 			l.sync()
-			return l, Navigate(Review)
+			return l, Navigate(ScreenReview)
 		}
 	}
 
