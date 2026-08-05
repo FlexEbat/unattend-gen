@@ -8,11 +8,17 @@ import (
 )
 
 type testShellComponent struct {
-	Name                  string             `xml:"name,attr"`
-	ComputerName          string             `xml:"ComputerName"`
-	LocalAccounts         []testLocalAccount `xml:"UserAccounts>LocalAccounts>LocalAccount"`
-	AdministratorPassword *testPassword      `xml:"UserAccounts>AdministratorPassword"`
-	AutoLogon             *testAutoLogon     `xml:"AutoLogon"`
+	Name                  string               `xml:"name,attr"`
+	ComputerName          string               `xml:"ComputerName"`
+	LocalAccounts         []testLocalAccount   `xml:"UserAccounts>LocalAccounts>LocalAccount"`
+	AdministratorPassword *testPassword        `xml:"UserAccounts>AdministratorPassword"`
+	AutoLogon             *testAutoLogon       `xml:"AutoLogon"`
+	OOBE                  *testOOBE            `xml:"OOBE"`
+	RunSynchronousCommand []testRunSyncCommand `xml:"RunSynchronous>RunSynchronousCommand"`
+}
+
+type testOOBE struct {
+	ProtectYourPC int `xml:"ProtectYourPC"`
 }
 
 type testLocalAccount struct {
