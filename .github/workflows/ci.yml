@@ -30,7 +30,18 @@ jobs:
           version: latest
 
       - name: test
-        run: go test ./... -race
+        run: |
+          set +e
+          go test ./... -race -v > test.log 2>&1
+          code=$?
+          set -e
+          cat test.log
+          if [ $code -ne 0 ]; then
+            grep -nE "FAIL|Error( |Trace)|panic:|\.go:[0-9]+:" test.log | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit $code
+          fi
 
   cross-build:
     needs: gate
