@@ -1,6 +1,7 @@
 package screens
 
 import (
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/FlexEbat/unattend-gen/internal/profile"
@@ -60,12 +61,16 @@ func NewAccounts(p *profile.Profile) Accounts {
 	if p.FirstLogon.BuiltinAdministratorPassword != nil {
 		a.adminPassword.SetValue(*p.FirstLogon.BuiltinAdministratorPassword)
 	}
+	// Set focus here, not in Init: bubbletea's Init only returns a tea.Cmd,
+	// it cannot mutate the model, so a Focus() call made there would be lost.
+	a.computerName.Focus()
 	return a
 }
 
-// Init focuses the computer name field.
+// Init returns the cursor-blink command for the focused field. The focus
+// state itself was already set in NewAccounts.
 func (a Accounts) Init() tea.Cmd {
-	return a.computerName.Focus()
+	return textinput.Blink
 }
 
 func (a Accounts) fieldCount() int {
