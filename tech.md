@@ -594,6 +594,8 @@ CONTRACT GAP
 
 ### Слайс 5 — TUI и пресеты
 
+**Статус: выполнено.**
+
 Слайс не меняет `Profile`, `validate.go` и `xmlgen/*`. Из API используется только то, что уже описано в разделе 5.
 
 **Файлы:** `internal/tui/app.go`, все файлы `internal/tui/screens/*`, все файлы `internal/tui/widgets/*` из раздела 6, `presets/minimal.json`, `presets/single-user.json`, доработка `internal/cli/profile.go` (`--preset`), `internal/cli/tui.go`.
