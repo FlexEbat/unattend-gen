@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/FlexEbat/unattend-gen/internal/profile"
+	"github.com/FlexEbat/unattend-gen/presets"
 )
 
 const profilesDir = "profiles"
@@ -21,13 +24,20 @@ func newProfileCmd() *cobra.Command {
 }
 
 func newProfileInitCmd() *cobra.Command {
-	return &cobra.Command{
+	var preset string
+
+	cmd := &cobra.Command{
 		Use:   "init <name>",
 		Short: "Create a new profile with default values",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			p := defaultProfile(name)
+
+			p, err := profileForInit(name, preset)
+			if err != nil {
+				return err
+			}
+
 			path := name + ".json"
 			if err := profile.SaveProfile(p, path); err != nil {
 				return fmt.Errorf("create profile %s: %w", path, err)
@@ -36,6 +46,10 @@ func newProfileInitCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().StringVar(&preset, "preset", "", "start from a built-in preset: "+strings.Join(presets.Names, "|"))
+
+	return cmd
 }
 
 func newProfileListCmd() *cobra.Command {
@@ -54,6 +68,28 @@ func newProfileListCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// profileForInit builds the profile for `profile init`: from a built-in
+// preset when preset is non-empty, otherwise the built-in defaults. The
+// profile's Name is always set to name, replacing whatever the preset file
+// carries.
+func profileForInit(name, preset string) (*profile.Profile, error) {
+	if preset == "" {
+		p := defaultProfile(name)
+		return p, nil
+	}
+
+	data, err := presets.Load(preset)
+	if err != nil {
+		return nil, err
+	}
+	var p profile.Profile
+	if err := json.Unmarshal(data, &p); err != nil {
+		return nil, fmt.Errorf("decode preset %s: %w", preset, err)
+	}
+	p.Name = name
+	return &p, nil
 }
 
 // defaultProfile returns a profile that passes ValidateProfile with no
