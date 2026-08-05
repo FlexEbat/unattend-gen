@@ -1,6 +1,7 @@
 package screens
 
 import (
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/FlexEbat/unattend-gen/internal/profile"
@@ -56,12 +57,16 @@ func NewLanguage(p *profile.Profile) Language {
 		l.productKey.SetValue(*p.Edition.ProductKey)
 	}
 	l.focus = 0
+	// Set focus here, not in Init: bubbletea's Init only returns a tea.Cmd,
+	// it cannot mutate the model, so a Focus() call made there would be lost.
+	l.uiLanguage.Focus()
 	return l
 }
 
-// Init focuses the first field.
+// Init returns the cursor-blink command for the focused field. The focus
+// state itself was already set in NewLanguage.
 func (l Language) Init() tea.Cmd {
-	return l.uiLanguage.Focus()
+	return textinput.Blink
 }
 
 // fieldCount returns how many fields are focusable given the current
