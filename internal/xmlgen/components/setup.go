@@ -15,16 +15,33 @@ var genericKeys = map[profile.WindowsEdition]string{
 	profile.EditionEnterprise: "NPPR9-FWDCX-D2C8J-H872K-2YT43",
 }
 
+// bypassWin11Command sets the well-known LabConfig registry values that make
+// Windows Setup skip the TPM/Secure Boot/RAM hardware checks. It must run in
+// the windowsPE pass, before Setup evaluates hardware requirements.
+const bypassWin11Command = `cmd.exe /c reg add "HKLM\SYSTEM\Setup\LabConfig" /v BypassTPMCheck /t REG_DWORD /d 1 /f && reg add "HKLM\SYSTEM\Setup\LabConfig" /v BypassSecureBootCheck /t REG_DWORD /d 1 /f && reg add "HKLM\SYSTEM\Setup\LabConfig" /v BypassRAMCheck /t REG_DWORD /d 1 /f`
+
+// runSynchronousCommand is one command run in order during a pass. Shared by
+// every component that exposes a RunSynchronous list.
+type runSynchronousCommand struct {
+	Order int    `xml:"Order"`
+	Path  string `xml:"Path"`
+}
+
+type runSynchronous struct {
+	RunSynchronousCommand []runSynchronousCommand `xml:"RunSynchronousCommand"`
+}
+
 // Setup is the Microsoft-Windows-Setup component, windowsPE pass, carrying
-// the product key.
+// the product key and the Windows 11 hardware-check bypass.
 type Setup struct {
-	XMLName               xml.Name `xml:"component"`
-	Name                  string   `xml:"name,attr"`
-	ProcessorArchitecture string   `xml:"processorArchitecture,attr"`
-	PublicKeyToken        string   `xml:"publicKeyToken,attr"`
-	Language              string   `xml:"language,attr"`
-	VersionScope          string   `xml:"versionScope,attr"`
-	UserData              UserData `xml:"UserData"`
+	XMLName               xml.Name        `xml:"component"`
+	Name                  string          `xml:"name,attr"`
+	ProcessorArchitecture string          `xml:"processorArchitecture,attr"`
+	PublicKeyToken        string          `xml:"publicKeyToken,attr"`
+	Language              string          `xml:"language,attr"`
+	VersionScope          string          `xml:"versionScope,attr"`
+	UserData              *UserData       `xml:"UserData,omitempty"`
+	RunSynchronous        *runSynchronous `xml:"RunSynchronous,omitempty"`
 }
 
 // UserData wraps the product key entry.
@@ -37,22 +54,35 @@ type ProductKey struct {
 	Key string `xml:"Key"`
 }
 
-// NewSetup builds the Microsoft-Windows-Setup component for edition. It
-// returns nil when Mode is EditionModeInteractive, since there is no product
-// key to carry and an empty component is not emitted.
-func NewSetup(edition profile.EditionSettings) *Setup {
+// NewSetup builds the Microsoft-Windows-Setup component for edition and the
+// Windows 11 bypass flag. It returns nil when there is neither a product key
+// nor a bypass to apply: an empty component is not emitted.
+func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool) *Setup {
 	key := resolveProductKey(edition)
-	if key == "" {
+
+	var runSync *runSynchronous
+	if bypassWin11Requirements {
+		runSync = &runSynchronous{RunSynchronousCommand: []runSynchronousCommand{
+			{Order: 1, Path: bypassWin11Command},
+		}}
+	}
+
+	if key == "" && runSync == nil {
 		return nil
 	}
-	return &Setup{
+
+	s := &Setup{
 		Name:                  "Microsoft-Windows-Setup",
 		ProcessorArchitecture: "amd64",
 		PublicKeyToken:        "31bf3856ad364e35",
 		Language:              "neutral",
 		VersionScope:          "nonSxS",
-		UserData:              UserData{ProductKey: ProductKey{Key: key}},
+		RunSynchronous:        runSync,
 	}
+	if key != "" {
+		s.UserData = &UserData{ProductKey: ProductKey{Key: key}}
+	}
+	return s
 }
 
 func resolveProductKey(edition profile.EditionSettings) string {
