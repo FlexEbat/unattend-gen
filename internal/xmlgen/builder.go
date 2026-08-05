@@ -62,8 +62,15 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
+	oobeSystem := []interface{}{}
 	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings); shellOOBE != nil {
-		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
+		oobeSystem = append(oobeSystem, shellOOBE)
+	}
+	if wlan := components.NewWLANSVC(p.Wifi); wlan != nil {
+		oobeSystem = append(oobeSystem, wlan)
+	}
+	if len(oobeSystem) > 0 {
+		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: oobeSystem})
 	}
 
 	body, err := xml.MarshalIndent(doc, "", "  ")
