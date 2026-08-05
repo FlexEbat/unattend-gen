@@ -572,6 +572,8 @@ CONTRACT GAP
 
 ### Слайс 4 — express settings и системные твики
 
+**Статус: выполнено.**
+
 **Файлы:** `internal/xmlgen/components/shellsetup.go` (расширение oobeSystem), `internal/xmlgen/components/setup.go` (bypass-требования Windows 11 добавляются в проход `windowsPE`), правила валидации не меняются — поля уже bool/enum, формальной валидации сверх типов не требуют.
 
 **Что делает:** `ExpressSettings.Mode` управляет блоком телеметрии OOBE; `SystemTweaks.DisableWindowsUpdate`, `DisableUAC`, `BypassWin11Requirements` добавляют соответствующие элементы (для Windows Update — синхронная команда реестра; для UAC и bypass — реестровые правки через `RunSynchronousCommand` в `specialize`).
