@@ -11,32 +11,57 @@ const (
 	adminUsername  = "Administrator"
 )
 
+// disableWindowsUpdateCommand and disableUACCommand are the registry edits
+// for the corresponding SystemTweaks flags. They run in the specialize pass.
+const (
+	disableWindowsUpdateCommand = `cmd.exe /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v NoAutoUpdate /t REG_DWORD /d 1 /f`
+	disableUACCommand           = `cmd.exe /c reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f`
+)
+
 // ShellSetupSpecialize is the Microsoft-Windows-Shell-Setup component in the
-// specialize pass, carrying the computer name.
+// specialize pass, carrying the computer name and registry-based tweaks.
 type ShellSetupSpecialize struct {
-	XMLName               xml.Name `xml:"component"`
-	Name                  string   `xml:"name,attr"`
-	ProcessorArchitecture string   `xml:"processorArchitecture,attr"`
-	PublicKeyToken        string   `xml:"publicKeyToken,attr"`
-	Language              string   `xml:"language,attr"`
-	VersionScope          string   `xml:"versionScope,attr"`
-	ComputerName          string   `xml:"ComputerName"`
+	XMLName               xml.Name        `xml:"component"`
+	Name                  string          `xml:"name,attr"`
+	ProcessorArchitecture string          `xml:"processorArchitecture,attr"`
+	PublicKeyToken        string          `xml:"publicKeyToken,attr"`
+	Language              string          `xml:"language,attr"`
+	VersionScope          string          `xml:"versionScope,attr"`
+	ComputerName          string          `xml:"ComputerName,omitempty"`
+	RunSynchronous        *runSynchronous `xml:"RunSynchronous,omitempty"`
 }
 
-// NewShellSetupSpecialize builds the specialize-pass component. It returns
-// nil when computerName is nil: Windows generates a random name itself.
-func NewShellSetupSpecialize(computerName *string) *ShellSetupSpecialize {
-	if computerName == nil {
+// NewShellSetupSpecialize builds the specialize-pass component from the
+// computer name and the DisableWindowsUpdate/DisableUAC tweaks. It returns
+// nil when there is nothing to configure: computerName is nil and both
+// tweaks are off.
+func NewShellSetupSpecialize(computerName *string, tweaks profile.SystemTweaks) *ShellSetupSpecialize {
+	var commands []runSynchronousCommand
+	if tweaks.DisableWindowsUpdate {
+		commands = append(commands, runSynchronousCommand{Order: len(commands) + 1, Path: disableWindowsUpdateCommand})
+	}
+	if tweaks.DisableUAC {
+		commands = append(commands, runSynchronousCommand{Order: len(commands) + 1, Path: disableUACCommand})
+	}
+
+	if computerName == nil && len(commands) == 0 {
 		return nil
 	}
-	return &ShellSetupSpecialize{
+
+	s := &ShellSetupSpecialize{
 		Name:                  shellSetupName,
 		ProcessorArchitecture: "amd64",
 		PublicKeyToken:        "31bf3856ad364e35",
 		Language:              "neutral",
 		VersionScope:          "nonSxS",
-		ComputerName:          *computerName,
 	}
+	if computerName != nil {
+		s.ComputerName = *computerName
+	}
+	if len(commands) > 0 {
+		s.RunSynchronous = &runSynchronous{RunSynchronousCommand: commands}
+	}
+	return s
 }
 
 // password is the shared <Password> element used by local accounts, the
@@ -69,8 +94,16 @@ type autoLogon struct {
 	Username string    `xml:"Username"`
 }
 
+// oobeBlock controls the OOBE express settings (telemetry) prompt. Value 1
+// applies the recommended settings automatically (telemetry on); value 3
+// turns automatic protection off. See Microsoft-Windows-Shell-Setup | OOBE |
+// ProtectYourPC.
+type oobeBlock struct {
+	ProtectYourPC int `xml:"ProtectYourPC"`
+}
+
 // ShellSetupOOBE is the Microsoft-Windows-Shell-Setup component in the
-// oobeSystem pass, carrying local accounts and auto-logon.
+// oobeSystem pass, carrying local accounts, auto-logon and express settings.
 type ShellSetupOOBE struct {
 	XMLName               xml.Name      `xml:"component"`
 	Name                  string        `xml:"name,attr"`
@@ -78,14 +111,14 @@ type ShellSetupOOBE struct {
 	PublicKeyToken        string        `xml:"publicKeyToken,attr"`
 	Language              string        `xml:"language,attr"`
 	VersionScope          string        `xml:"versionScope,attr"`
+	OOBE                  *oobeBlock    `xml:"OOBE,omitempty"`
 	UserAccounts          *userAccounts `xml:"UserAccounts,omitempty"`
 	AutoLogon             *autoLogon    `xml:"AutoLogon,omitempty"`
 }
 
-// NewShellSetupOOBE builds the oobeSystem-pass component from accounts and
-// firstLogon. It returns nil when there is nothing to configure: no accounts
-// and FirstLogonMode == FirstLogonNone.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon) *ShellSetupOOBE {
+// NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
+// firstLogon and express. It returns nil when there is nothing to configure.
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -133,7 +166,17 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 		// no AutoLogon element
 	}
 
-	if ua == nil && al == nil {
+	var oobe *oobeBlock
+	switch express.Mode {
+	case profile.ExpressAllEnabled:
+		oobe = &oobeBlock{ProtectYourPC: 1}
+	case profile.ExpressAllDisabled:
+		oobe = &oobeBlock{ProtectYourPC: 3}
+	case profile.ExpressInteractive:
+		// no OOBE element: Windows Setup asks interactively
+	}
+
+	if ua == nil && al == nil && oobe == nil {
 		return nil
 	}
 	return &ShellSetupOOBE{
@@ -142,6 +185,7 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 		PublicKeyToken:        "31bf3856ad364e35",
 		Language:              "neutral",
 		VersionScope:          "nonSxS",
+		OOBE:                  oobe,
 		UserAccounts:          ua,
 		AutoLogon:             al,
 	}
