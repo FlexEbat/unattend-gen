@@ -51,18 +51,18 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	doc := unattendDoc{Xmlns: unattendNamespace}
 
 	winPE := []interface{}{components.NewInternationalCore(p.Language)}
-	if setup := components.NewSetup(p.Edition); setup != nil {
+	if setup := components.NewSetup(p.Edition, p.SystemTweaks.BypassWin11Requirements); setup != nil {
 		winPE = append(winPE, setup)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "windowsPE", Components: winPE})
 
 	specialize := []interface{}{components.NewInternationalCore(p.Language)}
-	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName); shellSpecialize != nil {
+	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.SystemTweaks); shellSpecialize != nil {
 		specialize = append(specialize, shellSpecialize)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
-	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon); shellOOBE != nil {
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings); shellOOBE != nil {
 		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
 	}
 
