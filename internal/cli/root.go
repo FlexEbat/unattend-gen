@@ -16,6 +16,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newProfileCmd())
 	root.AddCommand(newValidateCmd())
 	root.AddCommand(newGenerateCmd())
+	root.AddCommand(newTUICmd())
 	return root
 }
 
