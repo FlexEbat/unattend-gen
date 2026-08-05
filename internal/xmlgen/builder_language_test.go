@@ -18,6 +18,12 @@ type testComponent struct {
 	ProductKey   *struct {
 		Key string `xml:"Key"`
 	} `xml:"UserData>ProductKey"`
+	RunSynchronousCommand []testRunSyncCommand `xml:"RunSynchronous>RunSynchronousCommand"`
+}
+
+type testRunSyncCommand struct {
+	Order int    `xml:"Order"`
+	Path  string `xml:"Path"`
 }
 
 type testSettingsPass struct {
