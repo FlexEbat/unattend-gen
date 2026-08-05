@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "name": "minimal",
+  "language": {
+    "ui_language": "en-US",
+    "locale": "en-US",
+    "keyboard_layout": "en-US"
+  },
+  "edition": {
+    "mode": "interactive"
+  },
+  "accounts": [],
+  "first_logon": {
+    "mode": "none"
+  },
+  "express_settings": {
+    "mode": "interactive"
+  },
+  "system_tweaks": {
+    "disable_windows_update": false,
+    "disable_uac": false,
+    "bypass_win11_requirements": false
+  }
+}

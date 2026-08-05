@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "name": "single-user",
+  "language": {
+    "ui_language": "en-US",
+    "locale": "en-US",
+    "keyboard_layout": "en-US"
+  },
+  "edition": {
+    "mode": "interactive"
+  },
+  "accounts": [
+    {
+      "name": "admin",
+      "display_name": null,
+      "password": null,
+      "group": "Administrators"
+    }
+  ],
+  "first_logon": {
+    "mode": "first_created_account"
+  },
+  "express_settings": {
+    "mode": "all_disabled"
+  },
+  "system_tweaks": {
+    "disable_windows_update": false,
+    "disable_uac": false,
+    "bypass_win11_requirements": false
+  }
+}
