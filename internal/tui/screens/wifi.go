@@ -20,11 +20,11 @@ var wifiAuthOptions = []widgets.SelectOption{
 // all, and if so its SSID, authentication, password and visibility.
 type Wifi struct {
 	profile  *profile.Profile
-	enabled  checkbox
+	enabled  widgets.Checkbox
 	ssid     widgets.LabeledInput
 	auth     widgets.LabeledSelect
 	password widgets.PasswordInput
-	hidden   checkbox
+	hidden   widgets.Checkbox
 	focus    int
 	bar      widgets.ConfirmBar
 }
@@ -33,11 +33,11 @@ type Wifi struct {
 func NewWifi(p *profile.Profile) Wifi {
 	w := Wifi{
 		profile:  p,
-		enabled:  checkbox{Label: "Configure Wi-Fi"},
+		enabled:  widgets.Checkbox{Label: "Configure Wi-Fi"},
 		ssid:     widgets.NewLabeledInput("SSID", "MyNetwork"),
 		auth:     widgets.NewLabeledSelect("Authentication", wifiAuthOptions),
 		password: widgets.NewPasswordInput("Password (min 8 chars, not used for Open)"),
-		hidden:   checkbox{Label: "Hidden network"},
+		hidden:   widgets.Checkbox{Label: "Hidden network"},
 		bar:      widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 	}
 	if p.Wifi != nil {
