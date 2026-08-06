@@ -21,21 +21,11 @@ type Model struct {
 }
 
 // NewModel builds the root model. If initial is nil, a fresh profile with
-// the same defaults as `profile init` (no preset) is used.
+// the same defaults as `profile init` (no preset) is used; its Name is set
+// later, when the welcome screen collects one.
 func NewModel(initial *profile.Profile) Model {
 	if initial == nil {
-		initial = &profile.Profile{
-			SchemaVersion: 1,
-			Language: profile.LanguageSettings{
-				UILanguage:     "en-US",
-				Locale:         "en-US",
-				KeyboardLayout: "en-US",
-			},
-			Edition:         profile.EditionSettings{Mode: profile.EditionModeInteractive},
-			Accounts:        []profile.UserAccount{},
-			FirstLogon:      profile.FirstLogon{Mode: profile.FirstLogonNone},
-			ExpressSettings: profile.ExpressSettings{Mode: profile.ExpressInteractive},
-		}
+		initial = profile.Default("")
 	}
 
 	return Model{
@@ -73,6 +63,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if nav.To == screens.ScreenReview {
 			if errs := screens.ValidateForReview(m.profile); len(errs) > 0 {
 				m.err = errs[0]
+				if er, ok := m.screens[m.current].(screens.ErrorReceiver); ok {
+					m.screens[m.current] = er.SetErrors(errs)
+				}
 				m.screens[screens.ScreenReview] = screens.NewReview(m.profile)
 				return m, nil
 			}
