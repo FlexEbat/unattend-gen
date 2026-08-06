@@ -34,6 +34,15 @@ func Navigate(to ID) tea.Cmd {
 	return func() tea.Msg { return NavigateMsg{To: to} }
 }
 
+// ErrorReceiver is implemented by screens that can route ValidateForReview's
+// error strings to the specific field widgets they concern, instead of only
+// a generic banner. Matching is done on the exact Russian messages
+// validate.go produces (they're our own constants, not third-party text, so
+// substring matching on them is precise rather than a fragile heuristic).
+type ErrorReceiver interface {
+	SetErrors(errs []string) tea.Model
+}
+
 // ValidateForReview re-validates the profile the same way profile.ValidateProfile
 // does for the CLI, so the review screen and `unattend-gen generate` never
 // disagree about what is valid. Returns nil when the profile is valid.

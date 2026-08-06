@@ -1,6 +1,8 @@
 package screens
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -283,4 +285,28 @@ func (a Accounts) View() string {
 	}
 	out += "\n\n" + a.bar.View()
 	return out
+}
+
+// SetErrors routes validate.go's messages to the field each one names.
+// Messages about a specific account row (name, password) go to the shared
+// banner under the table, since no single widget represents one row.
+// Implements screens.ErrorReceiver.
+func (a Accounts) SetErrors(errs []string) tea.Model {
+	a.computerName.Err = ""
+	a.firstLogon.Err = ""
+	a.adminPassword.Err = ""
+	a.err = ""
+	for _, e := range errs {
+		switch {
+		case strings.Contains(e, "Имя компьютера"):
+			a.computerName.Err = e
+		case strings.Contains(e, "first_created_account"):
+			a.firstLogon.Err = e
+		case strings.Contains(e, "встроенной учётной записи Administrator"):
+			a.adminPassword.Err = e
+		case strings.Contains(e, "учётной записи") || strings.Contains(e, "Учётных записей"):
+			a.err = e
+		}
+	}
+	return a
 }
