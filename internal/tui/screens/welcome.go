@@ -7,8 +7,6 @@ import (
 	"github.com/FlexEbat/unattend-gen/internal/tui/widgets"
 )
 
-const profilesDir = "profiles"
-
 const newProfileValue = "__new__"
 
 // Welcome is the first screen: pick an existing profile from ./profiles or
@@ -25,7 +23,7 @@ type Welcome struct {
 // NewWelcome builds the welcome screen backed by profile.
 func NewWelcome(p *profile.Profile) Welcome {
 	options := []widgets.SelectOption{{Value: newProfileValue, Label: "New profile"}}
-	if paths, err := profile.ListProfiles(profilesDir); err == nil {
+	if paths, err := profile.ListProfiles(profile.ProfilesDir); err == nil {
 		for _, path := range paths {
 			options = append(options, widgets.SelectOption{Value: path, Label: path})
 		}
