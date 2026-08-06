@@ -1,4 +1,3 @@
 /unattend-gen
 *.exe
 profiles/*.json
-!presets/*.json
