@@ -18,9 +18,9 @@ func (i selectItem) Description() string { return "" }
 
 // LabeledSelect is a compact single-select list for an enum-typed field.
 type LabeledSelect struct {
-	Label string
-	Err   string
-	list  list.Model
+	Label   string
+	Err     string
+	options list.Model
 }
 
 // SelectOption is one choice offered by a LabeledSelect: Value is the enum
@@ -42,12 +42,12 @@ func NewLabeledSelect(label string, options []SelectOption) LabeledSelect {
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowPagination(false)
-	return LabeledSelect{Label: label, list: l}
+	return LabeledSelect{Label: label, options: l}
 }
 
 // Value returns the currently selected option's Value, or "" if empty.
 func (s LabeledSelect) Value() string {
-	if item, ok := s.list.SelectedItem().(selectItem); ok {
+	if item, ok := s.options.SelectedItem().(selectItem); ok {
 		return item.Value
 	}
 	return ""
@@ -56,9 +56,9 @@ func (s LabeledSelect) Value() string {
 // SetValue moves the selection to the option whose Value matches v. No-op if
 // v is not one of the options.
 func (s *LabeledSelect) SetValue(v string) {
-	for i, it := range s.list.Items() {
+	for i, it := range s.options.Items() {
 		if item, ok := it.(selectItem); ok && item.Value == v {
-			s.list.Select(i)
+			s.options.Select(i)
 			return
 		}
 	}
@@ -67,13 +67,13 @@ func (s *LabeledSelect) SetValue(v string) {
 // Update forwards msg to the underlying list.
 func (s LabeledSelect) Update(msg tea.Msg) (LabeledSelect, tea.Cmd) {
 	var cmd tea.Cmd
-	s.list, cmd = s.list.Update(msg)
+	s.options, cmd = s.options.Update(msg)
 	return s, cmd
 }
 
 // View renders the label, the list and, if set, the error line.
 func (s LabeledSelect) View() string {
-	out := labelStyle.Render(s.Label) + "\n" + s.list.View()
+	out := labelStyle.Render(s.Label) + "\n" + s.options.View()
 	if s.Err != "" {
 		out += "\n" + errorStyle.Render(s.Err)
 	}
