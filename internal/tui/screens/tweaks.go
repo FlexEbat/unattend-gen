@@ -13,31 +13,13 @@ var expressModeOptions = []widgets.SelectOption{
 	{Value: string(profile.ExpressAllDisabled), Label: "Disable all categories"},
 }
 
-// checkbox is a boolean field rendered as [x]/[ ], toggled by space or
-// enter while focused.
-type checkbox struct {
-	Label   string
-	Checked bool
-}
-
-func (c checkbox) View(focused bool) string {
-	box := "[ ]"
-	if c.Checked {
-		box = "[x]"
-	}
-	if focused {
-		return "> " + box + " " + c.Label
-	}
-	return "  " + box + " " + c.Label
-}
-
 // Tweaks is the express settings / system tweaks screen.
 type Tweaks struct {
 	profile              *profile.Profile
 	expressMode          widgets.LabeledSelect
-	disableWindowsUpdate checkbox
-	disableUAC           checkbox
-	bypassWin11          checkbox
+	disableWindowsUpdate widgets.Checkbox
+	disableUAC           widgets.Checkbox
+	bypassWin11          widgets.Checkbox
 	focus                int
 	bar                  widgets.ConfirmBar
 }
@@ -47,9 +29,9 @@ func NewTweaks(p *profile.Profile) Tweaks {
 	t := Tweaks{
 		profile:              p,
 		expressMode:          widgets.NewLabeledSelect("Express settings", expressModeOptions),
-		disableWindowsUpdate: checkbox{Label: "Disable Windows Update"},
-		disableUAC:           checkbox{Label: "Disable UAC"},
-		bypassWin11:          checkbox{Label: "Bypass Windows 11 hardware requirements"},
+		disableWindowsUpdate: widgets.Checkbox{Label: "Disable Windows Update"},
+		disableUAC:           widgets.Checkbox{Label: "Disable UAC"},
+		bypassWin11:          widgets.Checkbox{Label: "Bypass Windows 11 hardware requirements"},
 		bar:                  widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 	}
 	t.expressMode.SetValue(string(p.ExpressSettings.Mode))
