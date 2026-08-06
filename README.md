@@ -1,25 +1,50 @@
 # unattend-gen
 
-CLI and TUI tool that builds `autounattend.xml` answer files for unattended
-Windows 10/11 installs. Goal is a full-featured terminal counterpart to
-[schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/).
+CLI and TUI tool that generates `autounattend.xml` answer files for
+unattended Windows 10/11 installs. It's a terminal counterpart to
+[schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/):
+answer language and edition, computer name and local accounts, telemetry and
+system tweaks, Wi-Fi, once, and reuse the result for every install.
 
-A profile (JSON file) captures every setting once. The same profile drives
-both the interactive TUI and the `generate` CLI command, and both go through
-the same XML builder, so a profile always produces the same answer file
-regardless of how it was filled in.
+A profile is a plain JSON file that captures every setting. The CLI and the
+TUI both read and write the same profile format and build the XML through
+the same code path, so a given profile always produces the same answer file
+no matter how it was filled in.
 
-The tool ships as a single static binary for Linux, macOS and Windows. It
-runs offline: no server, no network calls, no authentication. Profiles are
-plain JSON files on disk.
+## Features
 
-## Build
+- Language, locale, keyboard layout, Windows edition and product key
+- Computer name and up to 5 local accounts, with auto-logon control
+- Express settings (telemetry) and system tweaks (Windows Update, UAC,
+  Windows 11 hardware-check bypass)
+- Wi-Fi profile (SSID, WPA2/WPA3/open, hidden networks)
+- Two built-in presets (`minimal`, `single-user`) to start from
+- Interactive TUI for filling in a profile screen by screen, with a live XML
+  preview before saving
+- Ships as a single static binary — no server, no network calls, no config
+  beyond the profile JSON file
+
+## Tech stack
+
+- [Go](https://go.dev/)
+- [spf13/cobra](https://github.com/spf13/cobra) — CLI commands
+- [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea),
+  [bubbles](https://github.com/charmbracelet/bubbles),
+  [lipgloss](https://github.com/charmbracelet/lipgloss) — TUI
+- [go-playground/validator](https://github.com/go-playground/validator) —
+  profile validation
+
+## Install
+
+Requires Go 1.23+.
 
 ```sh
+git clone https://github.com/FlexEbat/unattend-gen.git
+cd unattend-gen
 go build -o unattend-gen ./cmd/unattend-gen
 ```
 
-Cross-compile with `GOOS`/`GOARCH`, `CGO_ENABLED=0`:
+Cross-compile for another OS with `GOOS`/`GOARCH`:
 
 ```sh
 GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o unattend-gen.exe ./cmd/unattend-gen
@@ -27,9 +52,37 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o unattend-gen.exe ./cmd/unatt
 
 ## Usage
 
+Create a profile, check it, and turn it into an answer file:
+
 ```sh
-unattend-gen profile init demo   # writes demo.json with default values
-unattend-gen validate demo.json  # checks a profile, exit code 0 or 1
+unattend-gen profile init demo                    # demo.json with default values
+unattend-gen profile init demo --preset minimal    # or start from a preset
+unattend-gen profile list                          # list profiles in ./profiles
+unattend-gen validate demo.json                     # exit code 0 or 1
+unattend-gen generate demo.json                     # writes autounattend.xml next to it
+unattend-gen generate demo.json -o out.xml          # or to a chosen path
+```
+
+Or fill in a profile interactively:
+
+```sh
+unattend-gen tui               # start from scratch
+unattend-gen tui demo.json     # start from an existing profile
+```
+
+Drop the resulting `autounattend.xml` at the root of a Windows installation
+USB drive (or mount it as a virtual floppy/CD in a VM) and Windows Setup
+picks it up automatically.
+
+## Project structure
+
+```text
+cmd/unattend-gen/     entry point
+internal/profile/     Profile schema, JSON load/save, validation
+internal/xmlgen/       autounattend.xml builder and its components
+internal/cli/          cobra commands: profile, validate, generate, tui
+internal/tui/          bubbletea app: screens and shared widgets
+presets/               built-in profile presets, embedded into the binary
 ```
 
 ## Development
@@ -37,3 +90,16 @@ unattend-gen validate demo.json  # checks a profile, exit code 0 or 1
 ```sh
 make gate   # gofmt check, go vet, golangci-lint, go test -race
 ```
+
+CI runs the same gate on every push, plus a cross-compile check for Linux,
+macOS and Windows.
+
+## Testing
+
+```sh
+go test ./... -race
+```
+
+## License
+
+[GPL-3.0](LICENSE)
