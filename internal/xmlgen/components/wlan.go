@@ -9,13 +9,10 @@ import (
 // WLANSVC is the Microsoft-Windows-WLANSVC component, oobeSystem pass,
 // carrying a single Wi-Fi profile.
 type WLANSVC struct {
-	XMLName               xml.Name     `xml:"component"`
-	Name                  string       `xml:"name,attr"`
-	ProcessorArchitecture string       `xml:"processorArchitecture,attr"`
-	PublicKeyToken        string       `xml:"publicKeyToken,attr"`
-	Language              string       `xml:"language,attr"`
-	VersionScope          string       `xml:"versionScope,attr"`
-	WLANProfiles          wlanProfiles `xml:"WLANProfiles"`
+	XMLName xml.Name `xml:"component"`
+	Name    string   `xml:"name,attr"`
+	standardAttrs
+	WLANProfiles wlanProfiles `xml:"WLANProfiles"`
 }
 
 type wlanProfiles struct {
@@ -70,11 +67,8 @@ func NewWLANSVC(wifi *profile.WifiSettings) *WLANSVC {
 	}
 
 	return &WLANSVC{
-		Name:                  "Microsoft-Windows-WLANSVC",
-		ProcessorArchitecture: "amd64",
-		PublicKeyToken:        "31bf3856ad364e35",
-		Language:              "neutral",
-		VersionScope:          "nonSxS",
+		Name:          "Microsoft-Windows-WLANSVC",
+		standardAttrs: newStandardAttrs(),
 		WLANProfiles: wlanProfiles{WLANProfile: wlanProfile{
 			SSIDConfig: ssidConfig{SSID: ssidName{Name: wifi.SSID}, NonBroadcast: wifi.ConnectHidden},
 			MSM:        msm{Security: sec},

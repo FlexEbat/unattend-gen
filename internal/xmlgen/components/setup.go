@@ -34,14 +34,11 @@ type runSynchronous struct {
 // Setup is the Microsoft-Windows-Setup component, windowsPE pass, carrying
 // the product key and the Windows 11 hardware-check bypass.
 type Setup struct {
-	XMLName               xml.Name        `xml:"component"`
-	Name                  string          `xml:"name,attr"`
-	ProcessorArchitecture string          `xml:"processorArchitecture,attr"`
-	PublicKeyToken        string          `xml:"publicKeyToken,attr"`
-	Language              string          `xml:"language,attr"`
-	VersionScope          string          `xml:"versionScope,attr"`
-	UserData              *UserData       `xml:"UserData,omitempty"`
-	RunSynchronous        *runSynchronous `xml:"RunSynchronous,omitempty"`
+	XMLName xml.Name `xml:"component"`
+	Name    string   `xml:"name,attr"`
+	standardAttrs
+	UserData       *UserData       `xml:"UserData,omitempty"`
+	RunSynchronous *runSynchronous `xml:"RunSynchronous,omitempty"`
 }
 
 // UserData wraps the product key entry.
@@ -72,12 +69,9 @@ func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool) *Se
 	}
 
 	s := &Setup{
-		Name:                  "Microsoft-Windows-Setup",
-		ProcessorArchitecture: "amd64",
-		PublicKeyToken:        "31bf3856ad364e35",
-		Language:              "neutral",
-		VersionScope:          "nonSxS",
-		RunSynchronous:        runSync,
+		Name:           "Microsoft-Windows-Setup",
+		standardAttrs:  newStandardAttrs(),
+		RunSynchronous: runSync,
 	}
 	if key != "" {
 		s.UserData = &UserData{ProductKey: ProductKey{Key: key}}
