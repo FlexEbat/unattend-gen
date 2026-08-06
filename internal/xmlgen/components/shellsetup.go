@@ -21,14 +21,11 @@ const (
 // ShellSetupSpecialize is the Microsoft-Windows-Shell-Setup component in the
 // specialize pass, carrying the computer name and registry-based tweaks.
 type ShellSetupSpecialize struct {
-	XMLName               xml.Name        `xml:"component"`
-	Name                  string          `xml:"name,attr"`
-	ProcessorArchitecture string          `xml:"processorArchitecture,attr"`
-	PublicKeyToken        string          `xml:"publicKeyToken,attr"`
-	Language              string          `xml:"language,attr"`
-	VersionScope          string          `xml:"versionScope,attr"`
-	ComputerName          string          `xml:"ComputerName,omitempty"`
-	RunSynchronous        *runSynchronous `xml:"RunSynchronous,omitempty"`
+	XMLName xml.Name `xml:"component"`
+	Name    string   `xml:"name,attr"`
+	standardAttrs
+	ComputerName   string          `xml:"ComputerName,omitempty"`
+	RunSynchronous *runSynchronous `xml:"RunSynchronous,omitempty"`
 }
 
 // NewShellSetupSpecialize builds the specialize-pass component from the
@@ -49,11 +46,8 @@ func NewShellSetupSpecialize(computerName *string, tweaks profile.SystemTweaks) 
 	}
 
 	s := &ShellSetupSpecialize{
-		Name:                  shellSetupName,
-		ProcessorArchitecture: "amd64",
-		PublicKeyToken:        "31bf3856ad364e35",
-		Language:              "neutral",
-		VersionScope:          "nonSxS",
+		Name:          shellSetupName,
+		standardAttrs: newStandardAttrs(),
 	}
 	if computerName != nil {
 		s.ComputerName = *computerName
@@ -105,15 +99,12 @@ type oobeBlock struct {
 // ShellSetupOOBE is the Microsoft-Windows-Shell-Setup component in the
 // oobeSystem pass, carrying local accounts, auto-logon and express settings.
 type ShellSetupOOBE struct {
-	XMLName               xml.Name      `xml:"component"`
-	Name                  string        `xml:"name,attr"`
-	ProcessorArchitecture string        `xml:"processorArchitecture,attr"`
-	PublicKeyToken        string        `xml:"publicKeyToken,attr"`
-	Language              string        `xml:"language,attr"`
-	VersionScope          string        `xml:"versionScope,attr"`
-	OOBE                  *oobeBlock    `xml:"OOBE,omitempty"`
-	UserAccounts          *userAccounts `xml:"UserAccounts,omitempty"`
-	AutoLogon             *autoLogon    `xml:"AutoLogon,omitempty"`
+	XMLName xml.Name `xml:"component"`
+	Name    string   `xml:"name,attr"`
+	standardAttrs
+	OOBE         *oobeBlock    `xml:"OOBE,omitempty"`
+	UserAccounts *userAccounts `xml:"UserAccounts,omitempty"`
+	AutoLogon    *autoLogon    `xml:"AutoLogon,omitempty"`
 }
 
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
@@ -180,13 +171,10 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 		return nil
 	}
 	return &ShellSetupOOBE{
-		Name:                  shellSetupName,
-		ProcessorArchitecture: "amd64",
-		PublicKeyToken:        "31bf3856ad364e35",
-		Language:              "neutral",
-		VersionScope:          "nonSxS",
-		OOBE:                  oobe,
-		UserAccounts:          ua,
-		AutoLogon:             al,
+		Name:          shellSetupName,
+		standardAttrs: newStandardAttrs(),
+		OOBE:          oobe,
+		UserAccounts:  ua,
+		AutoLogon:     al,
 	}
 }
