@@ -11,8 +11,6 @@ import (
 	"github.com/FlexEbat/unattend-gen/presets"
 )
 
-const profilesDir = "profiles"
-
 func newProfileCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "profile",
@@ -58,7 +56,7 @@ func newProfileListCmd() *cobra.Command {
 		Short: "List profiles in ./profiles",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			paths, err := profile.ListProfiles(profilesDir)
+			paths, err := profile.ListProfiles(profile.ProfilesDir)
 			if err != nil {
 				return fmt.Errorf("list profiles: %w", err)
 			}
@@ -76,8 +74,7 @@ func newProfileListCmd() *cobra.Command {
 // carries.
 func profileForInit(name, preset string) (*profile.Profile, error) {
 	if preset == "" {
-		p := defaultProfile(name)
-		return p, nil
+		return profile.Default(name), nil
 	}
 
 	data, err := presets.Load(preset)
@@ -90,28 +87,4 @@ func profileForInit(name, preset string) (*profile.Profile, error) {
 	}
 	p.Name = name
 	return &p, nil
-}
-
-// defaultProfile returns a profile that passes ValidateProfile with no
-// accounts and interactive express settings, per tech.md section 7.
-func defaultProfile(name string) *profile.Profile {
-	return &profile.Profile{
-		SchemaVersion: 1,
-		Name:          name,
-		Language: profile.LanguageSettings{
-			UILanguage:     "en-US",
-			Locale:         "en-US",
-			KeyboardLayout: "en-US",
-		},
-		Edition: profile.EditionSettings{
-			Mode: profile.EditionModeInteractive,
-		},
-		Accounts: []profile.UserAccount{},
-		FirstLogon: profile.FirstLogon{
-			Mode: profile.FirstLogonNone,
-		},
-		ExpressSettings: profile.ExpressSettings{
-			Mode: profile.ExpressInteractive,
-		},
-	}
 }
