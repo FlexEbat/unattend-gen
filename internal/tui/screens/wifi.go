@@ -1,6 +1,8 @@
 package screens
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -132,4 +134,20 @@ func (w Wifi) View() string {
 	}
 	out += "\n\n" + w.bar.View()
 	return out
+}
+
+// SetErrors routes validate.go's messages to the field each one names.
+// Implements screens.ErrorReceiver.
+func (w Wifi) SetErrors(errs []string) tea.Model {
+	w.ssid.Err = ""
+	w.password.Err = ""
+	for _, e := range errs {
+		switch {
+		case strings.Contains(e, "SSID"):
+			w.ssid.Err = e
+		case strings.Contains(e, "Пароль Wi-Fi"):
+			w.password.Err = e
+		}
+	}
+	return w
 }

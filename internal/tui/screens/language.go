@@ -1,6 +1,8 @@
 package screens
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -177,4 +179,29 @@ func (l Language) View() string {
 	}
 	out += "\n\n" + l.bar.View()
 	return out
+}
+
+// SetErrors routes validate.go's messages to the field each one names.
+// Implements screens.ErrorReceiver.
+func (l Language) SetErrors(errs []string) tea.Model {
+	l.uiLanguage.Err = ""
+	l.locale.Err = ""
+	l.keyboard.Err = ""
+	l.editionChoice.Err = ""
+	l.productKey.Err = ""
+	for _, e := range errs {
+		switch {
+		case strings.Contains(e, "ui_language"):
+			l.uiLanguage.Err = e
+		case strings.Contains(e, "locale"):
+			l.locale.Err = e
+		case strings.Contains(e, "keyboard_layout"):
+			l.keyboard.Err = e
+		case strings.Contains(e, "generic_key"):
+			l.editionChoice.Err = e
+		case strings.Contains(e, "custom_key"):
+			l.productKey.Err = e
+		}
+	}
+	return l
 }
