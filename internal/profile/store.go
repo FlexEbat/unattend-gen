@@ -8,6 +8,10 @@ import (
 	"sort"
 )
 
+// ProfilesDir is the conventional directory `profile list` (CLI) and the
+// welcome screen (TUI) both read profiles from.
+const ProfilesDir = "profiles"
+
 // LoadProfile reads and decodes a Profile from a JSON file at path.
 func LoadProfile(path string) (*Profile, error) {
 	data, err := os.ReadFile(path)
