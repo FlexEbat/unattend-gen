@@ -50,27 +50,23 @@ func (s settingsPass) MarshalXML(e *xml.Encoder, _ xml.StartElement) error {
 func BuildAnswerFile(p *profile.Profile) (string, error) {
 	doc := unattendDoc{Xmlns: unattendNamespace}
 
-	winPE := []interface{}{components.NewInternationalCore(p.Language)}
+	winPE := []interface{}{components.NewInternationalCoreWinPE(p.Language)}
 	if setup := components.NewSetup(p.Edition, p.SystemTweaks.BypassWin11Requirements); setup != nil {
 		winPE = append(winPE, setup)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "windowsPE", Components: winPE})
 
-	specialize := []interface{}{components.NewInternationalCore(p.Language)}
-	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.SystemTweaks); shellSpecialize != nil {
+	specialize := []interface{}{components.NewInternationalCoreSpecialize(p.Language)}
+	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName); shellSpecialize != nil {
 		specialize = append(specialize, shellSpecialize)
+	}
+	if deployment := components.NewDeployment(p.SystemTweaks); deployment != nil {
+		specialize = append(specialize, deployment)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
-	oobeSystem := []interface{}{}
-	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings); shellOOBE != nil {
-		oobeSystem = append(oobeSystem, shellOOBE)
-	}
-	if wlan := components.NewWLANSVC(p.Wifi); wlan != nil {
-		oobeSystem = append(oobeSystem, wlan)
-	}
-	if len(oobeSystem) > 0 {
-		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: oobeSystem})
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi); shellOOBE != nil {
+		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
 	}
 
 	body, err := xml.MarshalIndent(doc, "", "  ")
