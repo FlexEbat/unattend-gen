@@ -110,8 +110,8 @@ func TestBuildAnswerFileAllTweaksOffAddsNoRunSynchronous(t *testing.T) {
 	p.SystemTweaks = profile.SystemTweaks{}
 
 	doc := buildAndParseAccounts(t, p)
-	if shell := findShellComponent(doc, "specialize"); shell != nil && len(shell.RunSynchronousCommand) != 0 {
-		t.Fatalf("expected no RunSynchronousCommand in specialize, got %v", shell.RunSynchronousCommand)
+	if shell := findShellComponentByName(doc, "specialize", "Microsoft-Windows-Deployment"); shell != nil {
+		t.Fatalf("expected no Microsoft-Windows-Deployment component, got %+v", shell)
 	}
 	if shell := findShellComponent(doc, "windowsPE"); shell != nil {
 		t.Fatalf("expected no Shell-Setup component in windowsPE, got %+v", shell)
@@ -119,13 +119,14 @@ func TestBuildAnswerFileAllTweaksOffAddsNoRunSynchronous(t *testing.T) {
 }
 
 // componentNameFor returns which component carries the command for a given
-// (single-flag) tweaks value: Shell-Setup for the specialize-pass tweaks,
-// Microsoft-Windows-Setup for the windowsPE bypass.
+// (single-flag) tweaks value: Microsoft-Windows-Deployment for the
+// specialize-pass tweaks (Shell-Setup has no RunSynchronous list in the real
+// schema), Microsoft-Windows-Setup for the windowsPE bypass.
 func componentNameFor(t profile.SystemTweaks) string {
 	if t.BypassWin11Requirements {
 		return "Microsoft-Windows-Setup"
 	}
-	return "Microsoft-Windows-Shell-Setup"
+	return "Microsoft-Windows-Deployment"
 }
 
 func findShellComponentByName(doc testAccountsDoc, pass, name string) *testShellComponent {
