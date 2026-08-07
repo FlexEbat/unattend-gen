@@ -21,10 +21,16 @@ var genericKeys = map[profile.WindowsEdition]string{
 const bypassWin11Command = `cmd.exe /c reg add "HKLM\SYSTEM\Setup\LabConfig" /v BypassTPMCheck /t REG_DWORD /d 1 /f && reg add "HKLM\SYSTEM\Setup\LabConfig" /v BypassSecureBootCheck /t REG_DWORD /d 1 /f && reg add "HKLM\SYSTEM\Setup\LabConfig" /v BypassRAMCheck /t REG_DWORD /d 1 /f`
 
 // runSynchronousCommand is one command run in order during a pass. Shared by
-// every component that exposes a RunSynchronous list.
+// every component that exposes a RunSynchronous list. wcm:action="add" is
+// mandatory in the real schema, not just the four standard attributes.
 type runSynchronousCommand struct {
-	Order int    `xml:"Order"`
-	Path  string `xml:"Path"`
+	Action string `xml:"wcm:action,attr"`
+	Order  int    `xml:"Order"`
+	Path   string `xml:"Path"`
+}
+
+func newRunSynchronousCommand(order int, path string) runSynchronousCommand {
+	return runSynchronousCommand{Action: wcmActionAdd, Order: order, Path: path}
 }
 
 type runSynchronous struct {
@@ -41,9 +47,13 @@ type Setup struct {
 	RunSynchronous *runSynchronous `xml:"RunSynchronous,omitempty"`
 }
 
-// UserData wraps the product key entry.
+// UserData wraps the product key entry. AcceptEula is always true here: it
+// only exists when a product key was supplied, i.e. the profile chose a
+// non-interactive edition mode, so the EULA prompt must not block setup
+// either.
 type UserData struct {
 	ProductKey ProductKey `xml:"ProductKey"`
+	AcceptEula bool       `xml:"AcceptEula"`
 }
 
 // ProductKey is the license key applied during setup.
@@ -60,7 +70,7 @@ func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool) *Se
 	var runSync *runSynchronous
 	if bypassWin11Requirements {
 		runSync = &runSynchronous{RunSynchronousCommand: []runSynchronousCommand{
-			{Order: 1, Path: bypassWin11Command},
+			newRunSynchronousCommand(1, bypassWin11Command),
 		}}
 	}
 
@@ -74,7 +84,7 @@ func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool) *Se
 		RunSynchronous: runSync,
 	}
 	if key != "" {
-		s.UserData = &UserData{ProductKey: ProductKey{Key: key}}
+		s.UserData = &UserData{ProductKey: ProductKey{Key: key}, AcceptEula: true}
 	}
 	return s
 }
