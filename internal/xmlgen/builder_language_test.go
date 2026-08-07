@@ -131,8 +131,12 @@ func TestBuildAnswerFileLanguageFieldsPassThrough(t *testing.T) {
 	}
 
 	doc := buildAndParse(t, p)
+	componentNameByPass := map[string]string{
+		"windowsPE":  "Microsoft-Windows-International-Core-WinPE",
+		"specialize": "Microsoft-Windows-International-Core",
+	}
 	for _, pass := range []string{"windowsPE", "specialize"} {
-		core := findComponent(doc, pass, "Microsoft-Windows-International-Core")
+		core := findComponent(doc, pass, componentNameByPass[pass])
 		if core == nil {
 			t.Fatalf("expected International-Core component in pass %s", pass)
 		}
