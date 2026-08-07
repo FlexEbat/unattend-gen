@@ -4,7 +4,6 @@ on:
   push:
     branches: [main, dev]
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -84,55 +83,3 @@ jobs:
           ext=""
           if [ "${{ matrix.goos }}" = "windows" ]; then ext=".exe"; fi
           go build -o "${{ runner.temp }}/unattend-gen$ext" ./cmd/unattend-gen
-
-  # Temporary, manual-only: dump a real generated autounattend.xml as a log
-  # annotation so it can be reviewed by hand against the actual Windows
-  # component schema. Not part of the regular gate; remove after use.
-  xml-preview:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-          check-latest: true
-
-      - name: go mod tidy
-        run: go mod tidy
-
-      - name: build and generate a rich sample profile
-        run: |
-          go build -o unattend-gen ./cmd/unattend-gen
-          cat > preview.json << 'JSONEOF'
-          {
-            "schema_version": 1,
-            "name": "preview",
-            "language": {"ui_language": "de-DE", "locale": "fr-FR", "keyboard_layout": "en-GB"},
-            "edition": {"mode": "generic_key", "edition": "Pro"},
-            "computer_name": "PREVIEW-PC1",
-            "accounts": [
-              {"name": "admin", "display_name": "Site Admin", "password": "Sup3rSecret!", "group": "Administrators"},
-              {"name": "guest", "display_name": null, "password": null, "group": "Users"}
-            ],
-            "first_logon": {"mode": "first_created_account"},
-            "express_settings": {"mode": "all_disabled"},
-            "system_tweaks": {"disable_windows_update": true, "disable_uac": true, "bypass_win11_requirements": true},
-            "wifi": {"ssid": "Office-5G", "authentication": "WPA2Personal", "password": "wifipass1", "connect_hidden": true}
-          }
-          JSONEOF
-          ./unattend-gen generate preview.json -o preview.xml
-          cat preview.xml
-          cp preview.xml /tmp/preview-keep.xml
-
-      - name: publish preview.xml to a throwaway branch
-        run: |
-          git config user.name "unattend-gen bot"
-          git config user.email "unattend-gen@users.noreply.github.com"
-          git checkout --orphan xml-preview-output
-          git rm -rf . > /dev/null
-          cp /tmp/preview-keep.xml preview.xml
-          git add preview.xml
-          git commit -m "chore: xml preview output [skip ci]"
-          git push --force origin xml-preview-output
