@@ -125,12 +125,13 @@ jobs:
           ./unattend-gen generate preview.json -o preview.xml
           cat preview.xml
 
-      - name: dump XML as an annotation
+      - name: dump XML as annotations (chunked, 4096-byte annotation limit)
         run: |
-          encoded=$(python3 -c "
-          import sys
+          python3 -c "
           with open('preview.xml') as f:
               data = f.read()
-          print(data.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
-          ")
-          echo "::notice::${encoded}"
+          escaped = data.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          chunk_size = 3500
+          for i in range(0, len(escaped), chunk_size):
+              print('::notice::' + escaped[i:i+chunk_size])
+          "
