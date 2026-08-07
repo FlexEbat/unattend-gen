@@ -124,14 +124,15 @@ jobs:
           JSONEOF
           ./unattend-gen generate preview.json -o preview.xml
           cat preview.xml
+          cp preview.xml /tmp/preview-keep.xml
 
-      - name: dump XML as annotations (chunked, 4096-byte annotation limit)
+      - name: publish preview.xml to a throwaway branch
         run: |
-          python3 -c "
-          with open('preview.xml') as f:
-              data = f.read()
-          escaped = data.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
-          chunk_size = 3500
-          for i in range(0, len(escaped), chunk_size):
-              print('::notice::' + escaped[i:i+chunk_size])
-          "
+          git config user.name "unattend-gen bot"
+          git config user.email "unattend-gen@users.noreply.github.com"
+          git checkout --orphan xml-preview-output
+          git rm -rf . > /dev/null
+          cp /tmp/preview-keep.xml preview.xml
+          git add preview.xml
+          git commit -m "chore: xml preview output [skip ci]"
+          git push --force origin xml-preview-output
