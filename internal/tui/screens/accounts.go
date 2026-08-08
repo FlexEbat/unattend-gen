@@ -21,16 +21,21 @@ var groupOptions = []widgets.SelectOption{
 	{Value: string(profile.GroupUsers), Label: "Users"},
 }
 
-// Accounts is the computer name / local accounts / first logon screen.
+// Accounts is the computer name / time zone / local accounts / first logon
+// screen. Field order for Tab-cycling: computerName(0), timezone(1),
+// table(2), firstLogon(3), bypassOnlineAccount(4), adminPassword(5, only
+// when firstLogon is builtin_administrator).
 type Accounts struct {
-	profile       *profile.Profile
-	computerName  widgets.LabeledInput
-	table         widgets.AccountsTable
-	firstLogon    widgets.LabeledSelect
-	adminPassword widgets.PasswordInput
-	focus         int
-	bar           widgets.ConfirmBar
-	err           string
+	profile             *profile.Profile
+	computerName        widgets.LabeledInput
+	timezone            widgets.LabeledInput
+	table               widgets.AccountsTable
+	firstLogon          widgets.LabeledSelect
+	bypassOnlineAccount widgets.Checkbox
+	adminPassword       widgets.PasswordInput
+	focus               int
+	bar                 widgets.ConfirmBar
+	err                 string
 
 	formMode     bool
 	formEditing  bool
@@ -44,12 +49,16 @@ type Accounts struct {
 // NewAccounts builds the accounts screen backed by profile.
 func NewAccounts(p *profile.Profile) Accounts {
 	a := Accounts{
-		profile:       p,
-		computerName:  widgets.NewLabeledInput("Computer name (optional)", "leave empty for a random name"),
-		table:         widgets.NewAccountsTable(),
-		firstLogon:    widgets.NewLabeledSelect("First logon", firstLogonOptions),
+		profile:      p,
+		computerName: widgets.NewLabeledInput("Computer name (optional)", "leave empty for a random name"),
+		timezone:     widgets.NewLabeledInput("Time zone (optional)", "e.g. Russian Standard Time"),
+		table:        widgets.NewAccountsTable(),
+		firstLogon:   widgets.NewLabeledSelect("First logon", firstLogonOptions),
+		bypassOnlineAccount: widgets.Checkbox{
+			Label: "Skip the Microsoft-account requirement (best-effort, not guaranteed on every build)",
+		},
 		adminPassword: widgets.NewPasswordInput("Administrator password"),
-		bar:           widgets.NewConfirmBar("Tab: focus", "a: add", "e: edit", "d: delete", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
+		bar:           widgets.NewConfirmBar("Tab: focus", "a: add", "e: edit", "d: delete", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 		formName:      widgets.NewLabeledInput("Name", "alice"),
 		formDisplay:   widgets.NewLabeledInput("Display name (optional)", ""),
 		formPassword:  widgets.NewPasswordInput("Password (optional)"),
@@ -58,8 +67,12 @@ func NewAccounts(p *profile.Profile) Accounts {
 	if p.ComputerName != nil {
 		a.computerName.SetValue(*p.ComputerName)
 	}
+	if p.Timezone != nil {
+		a.timezone.SetValue(*p.Timezone)
+	}
 	a.table.SetAccounts(p.Accounts)
 	a.firstLogon.SetValue(string(p.FirstLogon.Mode))
+	a.bypassOnlineAccount.Checked = p.BypassOnlineAccountRequirement
 	if p.FirstLogon.BuiltinAdministratorPassword != nil {
 		a.adminPassword.SetValue(*p.FirstLogon.BuiltinAdministratorPassword)
 	}
@@ -77,19 +90,22 @@ func (a Accounts) Init() tea.Cmd {
 
 func (a Accounts) fieldCount() int {
 	if profile.FirstLogonMode(a.firstLogon.Value()) == profile.FirstLogonBuiltinAdmin {
-		return 4
+		return 6
 	}
-	return 3
+	return 5
 }
 
 func (a *Accounts) setFocus(i int) tea.Cmd {
 	a.computerName.Blur()
+	a.timezone.Blur()
 	a.adminPassword.Blur()
 	a.focus = i
-	if i == 0 {
+	switch i {
+	case 0:
 		return a.computerName.Focus()
-	}
-	if i == 3 {
+	case 1:
+		return a.timezone.Focus()
+	case 5:
 		return a.adminPassword.Focus()
 	}
 	return nil
@@ -102,6 +118,12 @@ func (a *Accounts) sync() {
 	} else {
 		a.profile.ComputerName = &name
 	}
+	tz := a.timezone.Value()
+	if tz == "" {
+		a.profile.Timezone = nil
+	} else {
+		a.profile.Timezone = &tz
+	}
 	a.profile.Accounts = a.table.Accounts()
 	a.profile.FirstLogon.Mode = profile.FirstLogonMode(a.firstLogon.Value())
 	if a.profile.FirstLogon.Mode == profile.FirstLogonBuiltinAdmin {
@@ -110,6 +132,7 @@ func (a *Accounts) sync() {
 	} else {
 		a.profile.FirstLogon.BuiltinAdministratorPassword = nil
 	}
+	a.profile.BypassOnlineAccountRequirement = a.bypassOnlineAccount.Checked
 }
 
 func (a *Accounts) openForm(editing bool) {
@@ -187,20 +210,26 @@ func (a Accounts) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.sync()
 			return a, cmd
 		case "a":
-			if a.focus == 1 {
+			if a.focus == 2 {
 				a.openForm(false)
 				return a, nil
 			}
 		case "e":
-			if a.focus == 1 {
+			if a.focus == 2 {
 				if _, ok := a.table.Selected(); ok {
 					a.openForm(true)
 				}
 				return a, nil
 			}
 		case "d":
-			if a.focus == 1 {
+			if a.focus == 2 {
 				a.table.RemoveSelected()
+				a.sync()
+				return a, nil
+			}
+		case " ":
+			if a.focus == 4 {
+				a.bypassOnlineAccount.Checked = !a.bypassOnlineAccount.Checked
 				a.sync()
 				return a, nil
 			}
@@ -221,10 +250,12 @@ func (a Accounts) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case 0:
 		a.computerName, cmd = a.computerName.Update(msg)
 	case 1:
-		a.table, cmd = a.table.Update(msg)
+		a.timezone, cmd = a.timezone.Update(msg)
 	case 2:
-		a.firstLogon, cmd = a.firstLogon.Update(msg)
+		a.table, cmd = a.table.Update(msg)
 	case 3:
+		a.firstLogon, cmd = a.firstLogon.Update(msg)
+	case 5:
 		a.adminPassword, cmd = a.adminPassword.Update(msg)
 	}
 	a.sync()
@@ -276,7 +307,8 @@ func (a Accounts) View() string {
 		return out
 	}
 
-	out := a.computerName.View() + "\n\n" + a.table.View() + "\n\n" + a.firstLogon.View()
+	out := a.computerName.View() + "\n\n" + a.timezone.View() + "\n\n" + a.table.View() + "\n\n" + a.firstLogon.View()
+	out += "\n\n" + a.bypassOnlineAccount.View(a.focus == 4)
 	if profile.FirstLogonMode(a.firstLogon.Value()) == profile.FirstLogonBuiltinAdmin {
 		out += "\n\n" + a.adminPassword.View()
 	}
@@ -293,6 +325,7 @@ func (a Accounts) View() string {
 // Implements screens.ErrorReceiver.
 func (a Accounts) SetErrors(errs []string) tea.Model {
 	a.computerName.Err = ""
+	a.timezone.Err = ""
 	a.firstLogon.Err = ""
 	a.adminPassword.Err = ""
 	a.err = ""
@@ -300,6 +333,8 @@ func (a Accounts) SetErrors(errs []string) tea.Model {
 		switch {
 		case strings.Contains(e, "Имя компьютера"):
 			a.computerName.Err = e
+		case strings.Contains(e, "Часовой пояс"):
+			a.timezone.Err = e
 		case strings.Contains(e, "first_created_account"):
 			a.firstLogon.Err = e
 		case strings.Contains(e, "встроенной учётной записи Administrator"):
