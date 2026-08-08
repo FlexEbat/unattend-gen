@@ -47,6 +47,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateLanguage(p.Language)...)
 	errs = append(errs, validateEdition(p.Edition)...)
 	errs = append(errs, validateComputerName(p.ComputerName)...)
+	errs = append(errs, validateTimezone(p.Timezone)...)
 	errs = append(errs, validateAccounts(p.Accounts)...)
 	errs = append(errs, validateFirstLogon(p.FirstLogon, p.Accounts)...)
 	errs = append(errs, validateWifi(p.Wifi)...)
@@ -95,6 +96,19 @@ func validateEdition(e EditionSettings) []string {
 		}
 	}
 	return errs
+}
+
+// validateTimezone only rejects the empty string: Windows time zone IDs
+// ("Russian Standard Time", "UTC", ...) form a large, version-dependent
+// list we don't try to replicate here.
+func validateTimezone(tz *string) []string {
+	if tz == nil {
+		return nil
+	}
+	if *tz == "" {
+		return []string{"Часовой пояс не может быть пустой строкой, используйте null"}
+	}
+	return nil
 }
 
 func validateComputerName(name *string) []string {
