@@ -105,16 +105,18 @@ type WifiSettings struct {
 
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
-	SchemaVersion   int              `json:"schema_version" validate:"required,eq=1"`
-	Name            string           `json:"name" validate:"required"`
-	Language        LanguageSettings `json:"language"`
-	Edition         EditionSettings  `json:"edition"`
-	ComputerName    *string          `json:"computer_name"` // nil = Windows generates a random name
-	Accounts        []UserAccount    `json:"accounts" validate:"max=5,dive"`
-	FirstLogon      FirstLogon       `json:"first_logon"`
-	ExpressSettings ExpressSettings  `json:"express_settings"`
-	SystemTweaks    SystemTweaks     `json:"system_tweaks"`
-	Wifi            *WifiSettings    `json:"wifi"` // nil = Wi-Fi setup is skipped
+	SchemaVersion                  int              `json:"schema_version" validate:"required,eq=1"`
+	Name                           string           `json:"name" validate:"required"`
+	Language                       LanguageSettings `json:"language"`
+	Edition                        EditionSettings  `json:"edition"`
+	ComputerName                   *string          `json:"computer_name"` // nil = Windows generates a random name
+	Timezone                       *string          `json:"timezone"`      // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
+	Accounts                       []UserAccount    `json:"accounts" validate:"max=5,dive"`
+	FirstLogon                     FirstLogon       `json:"first_logon"`
+	ExpressSettings                ExpressSettings  `json:"express_settings"`
+	SystemTweaks                   SystemTweaks     `json:"system_tweaks"`
+	Wifi                           *WifiSettings    `json:"wifi"` // nil = Wi-Fi setup is skipped
+	BypassOnlineAccountRequirement bool             `json:"bypass_online_account_requirement"`
 }
 
 // Default returns a profile that passes ValidateProfile: no accounts, no
