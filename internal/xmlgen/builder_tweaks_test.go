@@ -35,11 +35,11 @@ func TestBuildAnswerFileExpressAllEnabled(t *testing.T) {
 	}
 }
 
-func TestBuildAnswerFileExpressInteractiveOmitsOOBEBlock(t *testing.T) {
+func TestBuildAnswerFileExpressInteractiveOmitsProtectYourPC(t *testing.T) {
 	p := baseProfile()
-	// Give the oobeSystem Shell-Setup component another reason to exist, so
-	// this test actually proves the OOBE sub-element is missing rather than
-	// the whole component.
+	// Accounts alone now sets HideOnlineAccountScreens (see the Wi-Fi/OOBE
+	// slice), so this test checks ProtectYourPC specifically, not the whole
+	// OOBE block.
 	p.Accounts = []profile.UserAccount{{Name: "alice", Group: profile.GroupAdministrators}}
 	p.ExpressSettings = profile.ExpressSettings{Mode: profile.ExpressInteractive}
 
@@ -48,8 +48,11 @@ func TestBuildAnswerFileExpressInteractiveOmitsOOBEBlock(t *testing.T) {
 	if shell == nil {
 		t.Fatal("expected oobeSystem Shell-Setup component (for the account)")
 	}
-	if shell.OOBE != nil {
-		t.Fatalf("expected no OOBE block for ExpressInteractive, got %+v", shell.OOBE)
+	if shell.OOBE == nil {
+		t.Fatal("expected an OOBE block: accounts imply HideOnlineAccountScreens")
+	}
+	if shell.OOBE.ProtectYourPC != 0 {
+		t.Fatalf("expected no ProtectYourPC for ExpressInteractive, got %d", shell.OOBE.ProtectYourPC)
 	}
 }
 
