@@ -14,15 +14,23 @@ no matter how it was filled in.
 ## Features
 
 - Language, locale, keyboard layout, Windows edition and product key
-- Computer name and up to 5 local accounts, with auto-logon control
+- Computer name, time zone, and up to 5 local accounts, with auto-logon control
 - Express settings (telemetry) and system tweaks (Windows Update, UAC,
   Windows 11 hardware-check bypass)
+- OOBE screens (EULA, OEM registration, network setup) are hidden automatically
+  once the profile has enough non-interactive settings to complete without
+  them; an optional flag skips the Microsoft-account requirement (best-effort —
+  Microsoft has patched around this more than once, so it isn't guaranteed on
+  every Windows build)
 - Wi-Fi profile (SSID, WPA2/WPA3/open, hidden networks)
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
 - Ships as a single static binary — no server, no network calls, no config
   beyond the profile JSON file
+
+Disk partitioning is intentionally out of scope: Windows Setup always asks
+where to install, same as a normal manual install.
 
 ## Tech stack
 
