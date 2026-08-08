@@ -12,35 +12,48 @@ const (
 )
 
 // ShellSetupSpecialize is the Microsoft-Windows-Shell-Setup component in the
-// specialize pass, carrying the computer name. Registry tweaks used to live
-// here too, but Shell-Setup has no RunSynchronous list in the real schema:
-// that belongs to Microsoft-Windows-Deployment (see NewDeployment below).
+// specialize pass, carrying the computer name and time zone. Registry
+// tweaks used to live here too, but Shell-Setup has no RunSynchronous list
+// in the real schema: that belongs to Microsoft-Windows-Deployment (see
+// NewDeployment below).
 type ShellSetupSpecialize struct {
 	XMLName xml.Name `xml:"component"`
 	Name    string   `xml:"name,attr"`
 	standardAttrs
 	ComputerName string `xml:"ComputerName,omitempty"`
+	TimeZone     string `xml:"TimeZone,omitempty"`
 }
 
 // NewShellSetupSpecialize builds the specialize-pass component from the
-// computer name. Returns nil when computerName is nil: Windows generates a
-// random name itself.
-func NewShellSetupSpecialize(computerName *string) *ShellSetupSpecialize {
-	if computerName == nil {
+// computer name and time zone. Returns nil when both are nil: Windows
+// generates a random name and determines the time zone itself.
+func NewShellSetupSpecialize(computerName, timezone *string) *ShellSetupSpecialize {
+	if computerName == nil && timezone == nil {
 		return nil
 	}
-	return &ShellSetupSpecialize{
+	s := &ShellSetupSpecialize{
 		Name:          shellSetupName,
 		standardAttrs: newStandardAttrs(),
-		ComputerName:  *computerName,
 	}
+	if computerName != nil {
+		s.ComputerName = *computerName
+	}
+	if timezone != nil {
+		s.TimeZone = *timezone
+	}
+	return s
 }
 
-// disableWindowsUpdateCommand and disableUACCommand are the registry edits
-// for the corresponding SystemTweaks flags. They run in the specialize pass.
+// disableWindowsUpdateCommand, disableUACCommand and bypassOnlineAccountCommand
+// are the registry edits for the corresponding profile settings. They run in
+// the specialize pass. bypassOnlineAccountCommand sets the same registry
+// value the (now removed) `oobe\bypassnro` command used to set; real-world
+// reliability varies by Windows build and Microsoft has patched around it
+// more than once, so this is best-effort, not a guarantee.
 const (
 	disableWindowsUpdateCommand = `cmd.exe /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v NoAutoUpdate /t REG_DWORD /d 1 /f`
 	disableUACCommand           = `cmd.exe /c reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f`
+	bypassOnlineAccountCommand  = `cmd.exe /c reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v BypassNRO /t REG_DWORD /d 1 /f`
 )
 
 // Deployment is the Microsoft-Windows-Deployment component, specialize pass:
@@ -53,15 +66,18 @@ type Deployment struct {
 }
 
 // NewDeployment builds the specialize-pass component for the
-// DisableWindowsUpdate/DisableUAC tweaks. Returns nil when both are off: an
-// empty component is not emitted.
-func NewDeployment(tweaks profile.SystemTweaks) *Deployment {
+// DisableWindowsUpdate/DisableUAC/BypassOnlineAccountRequirement settings.
+// Returns nil when none are set: an empty component is not emitted.
+func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool) *Deployment {
 	var commands []runSynchronousCommand
 	if tweaks.DisableWindowsUpdate {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, disableWindowsUpdateCommand))
 	}
 	if tweaks.DisableUAC {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, disableUACCommand))
+	}
+	if bypassOnlineAccountRequirement {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, bypassOnlineAccountCommand))
 	}
 	if len(commands) == 0 {
 		return nil
@@ -106,12 +122,20 @@ type autoLogon struct {
 	Username   string    `xml:"Username"`
 }
 
-// oobeBlock controls the OOBE express settings (telemetry) prompt. Value 1
-// applies the recommended settings automatically (telemetry on); value 3
-// turns automatic protection off. See Microsoft-Windows-Shell-Setup | OOBE |
-// ProtectYourPC.
+// oobeBlock controls OOBE screens. ProtectYourPC (1 = apply recommended
+// settings automatically i.e. telemetry on, 3 = turn automatic protection
+// off) covers the express-settings prompt. The Hide* fields and
+// NetworkLocation additionally suppress the EULA/OEM/online-account/
+// wireless-setup screens so a non-interactive profile does not stop at one
+// of them; see Microsoft-Windows-Shell-Setup | OOBE on learn.microsoft.com.
 type oobeBlock struct {
-	ProtectYourPC int `xml:"ProtectYourPC"`
+	ProtectYourPC             int    `xml:"ProtectYourPC,omitempty"`
+	HideEULAPage              bool   `xml:"HideEULAPage,omitempty"`
+	HideOEMRegistrationScreen bool   `xml:"HideOEMRegistrationScreen,omitempty"`
+	HideOnlineAccountScreens  bool   `xml:"HideOnlineAccountScreens,omitempty"`
+	HideWirelessSetupInOOBE   bool   `xml:"HideWirelessSetupInOOBE,omitempty"`
+	HideLocalAccountScreen    bool   `xml:"HideLocalAccountScreen,omitempty"`
+	NetworkLocation           string `xml:"NetworkLocation,omitempty"`
 }
 
 // firstLogonCommands is Microsoft-Windows-Shell-Setup/FirstLogonCommands:
@@ -143,7 +167,7 @@ type ShellSetupOOBE struct {
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
 // firstLogon, express and wifi. It returns nil when there is nothing to
 // configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings) *ShellSetupOOBE {
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -192,14 +216,30 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 		// no AutoLogon element
 	}
 
-	var oobe *oobeBlock
+	oobe := &oobeBlock{}
 	switch express.Mode {
 	case profile.ExpressAllEnabled:
-		oobe = &oobeBlock{ProtectYourPC: 1}
+		oobe.ProtectYourPC = 1
 	case profile.ExpressAllDisabled:
-		oobe = &oobeBlock{ProtectYourPC: 3}
+		oobe.ProtectYourPC = 3
 	case profile.ExpressInteractive:
-		// no OOBE element: Windows Setup asks interactively
+		// ProtectYourPC left unset: Windows Setup asks interactively
+	}
+	if express.Mode != profile.ExpressInteractive {
+		oobe.HideEULAPage = true
+		oobe.HideOEMRegistrationScreen = true
+		oobe.HideLocalAccountScreen = true
+		oobe.HideWirelessSetupInOOBE = true
+		oobe.NetworkLocation = "Work"
+	}
+	// A local account defined in the profile is, in practice, the reliable
+	// way to skip the Microsoft-account requirement; BypassOnlineAccountRequirement
+	// covers the case where no account is predefined either.
+	if len(accounts) > 0 || bypassOnlineAccountRequirement {
+		oobe.HideOnlineAccountScreens = true
+	}
+	if *oobe == (oobeBlock{}) {
+		oobe = nil
 	}
 
 	var flc *firstLogonCommands
