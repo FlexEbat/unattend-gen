@@ -57,15 +57,15 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "windowsPE", Components: winPE})
 
 	specialize := []interface{}{components.NewInternationalCoreSpecialize(p.Language)}
-	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName); shellSpecialize != nil {
+	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.Timezone); shellSpecialize != nil {
 		specialize = append(specialize, shellSpecialize)
 	}
-	if deployment := components.NewDeployment(p.SystemTweaks); deployment != nil {
+	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement); deployment != nil {
 		specialize = append(specialize, deployment)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
-	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi); shellOOBE != nil {
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement); shellOOBE != nil {
 		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
 	}
 
