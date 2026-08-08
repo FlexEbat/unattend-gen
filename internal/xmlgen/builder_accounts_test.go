@@ -10,19 +10,22 @@ import (
 type testShellComponent struct {
 	Name                  string               `xml:"name,attr"`
 	ComputerName          string               `xml:"ComputerName"`
+	TimeZone              string               `xml:"TimeZone"`
 	LocalAccounts         []testLocalAccount   `xml:"UserAccounts>LocalAccounts>LocalAccount"`
 	AdministratorPassword *testPassword        `xml:"UserAccounts>AdministratorPassword"`
 	AutoLogon             *testAutoLogon       `xml:"AutoLogon"`
 	OOBE                  *testOOBE            `xml:"OOBE"`
 	RunSynchronousCommand []testRunSyncCommand `xml:"RunSynchronous>RunSynchronousCommand"`
-	SSID                  string               `xml:"WLANProfiles>WLANProfile>SSIDConfig>SSID>name"`
-	NonBroadcast          bool                 `xml:"WLANProfiles>WLANProfile>SSIDConfig>nonBroadcast"`
-	Authentication        string               `xml:"WLANProfiles>WLANProfile>MSM>security>authEncryption>authentication"`
-	KeyMaterial           *string              `xml:"WLANProfiles>WLANProfile>MSM>security>sharedKey>keyMaterial"`
 }
 
 type testOOBE struct {
-	ProtectYourPC int `xml:"ProtectYourPC"`
+	ProtectYourPC             int    `xml:"ProtectYourPC"`
+	HideEULAPage              bool   `xml:"HideEULAPage"`
+	HideOEMRegistrationScreen bool   `xml:"HideOEMRegistrationScreen"`
+	HideOnlineAccountScreens  bool   `xml:"HideOnlineAccountScreens"`
+	HideWirelessSetupInOOBE   bool   `xml:"HideWirelessSetupInOOBE"`
+	HideLocalAccountScreen    bool   `xml:"HideLocalAccountScreen"`
+	NetworkLocation           string `xml:"NetworkLocation"`
 }
 
 type testLocalAccount struct {
