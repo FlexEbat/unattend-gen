@@ -200,7 +200,7 @@ type ShellSetupOOBE struct {
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
 // firstLogon, express and wifi. It returns nil when there is nothing to
 // configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool) *ShellSetupOOBE {
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -275,11 +275,16 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 		oobe = nil
 	}
 
-	var flc *firstLogonCommands
+	var flCommands []synchronousCommand
 	if cmd := WifiFirstLogonCommand(wifi); cmd != "" {
-		flc = &firstLogonCommands{SynchronousCommand: []synchronousCommand{
-			{Action: wcmActionAdd, Order: 1, CommandLine: cmd},
-		}}
+		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
+	}
+	if cmd := RemoveAppsFirstLogonCommand(removeApps); cmd != "" {
+		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
+	}
+	var flc *firstLogonCommands
+	if len(flCommands) > 0 {
+		flc = &firstLogonCommands{SynchronousCommand: flCommands}
 	}
 
 	if ua == nil && al == nil && oobe == nil && flc == nil {
