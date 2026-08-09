@@ -44,16 +44,30 @@ func NewShellSetupSpecialize(computerName, timezone *string) *ShellSetupSpeciali
 	return s
 }
 
-// disableWindowsUpdateCommand, disableUACCommand and bypassOnlineAccountCommand
-// are the registry edits for the corresponding profile settings. They run in
-// the specialize pass. bypassOnlineAccountCommand sets the same registry
-// value the (now removed) `oobe\bypassnro` command used to set; real-world
+// Registry edits for the corresponding profile settings. They run in the
+// specialize pass. bypassOnlineAccountCommand sets the same registry value
+// the (now removed) `oobe\bypassnro` command used to set; real-world
 // reliability varies by Windows build and Microsoft has patched around it
 // more than once, so this is best-effort, not a guarantee.
 const (
 	disableWindowsUpdateCommand = `cmd.exe /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" /v NoAutoUpdate /t REG_DWORD /d 1 /f`
 	disableUACCommand           = `cmd.exe /c reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLUA /t REG_DWORD /d 0 /f`
 	bypassOnlineAccountCommand  = `cmd.exe /c reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v BypassNRO /t REG_DWORD /d 1 /f`
+
+	disableSmartAppControlCommand  = `cmd.exe /c reg add "HKLM\SYSTEM\CurrentControlSet\Control\CI\Policy" /v VerifiedAndReputablePolicyState /t REG_DWORD /d 0 /f`
+	disableSmartScreenCommand      = `cmd.exe /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\System" /v EnableSmartScreen /t REG_DWORD /d 0 /f && reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v SmartScreenEnabled /t REG_DWORD /d 0 /f`
+	disableFastStartupCommand      = `cmd.exe /c reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Power" /v HiberbootEnabled /t REG_DWORD /d 0 /f`
+	disableSystemRestoreCommand    = `cmd.exe /c reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore" /v DisableSR /t REG_DWORD /d 1 /f`
+	enableLongPathsCommand         = `cmd.exe /c reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /t REG_DWORD /d 1 /f`
+	enableRemoteDesktopCommand     = `cmd.exe /c reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f && netsh advfirewall firewall set rule group="remote desktop" new enable=yes`
+	allowPowerShellScriptsCommand  = `cmd.exe /c reg add "HKLM\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell" /v ExecutionPolicy /t REG_SZ /d RemoteSigned /f`
+	disableLastAccessCommand       = `cmd.exe /c fsutil behavior set disablelastaccess 1`
+	preventDeviceEncryptionCommand = `cmd.exe /c reg add "HKLM\SYSTEM\CurrentControlSet\Control\BitLocker" /v PreventDeviceEncryption /t REG_DWORD /d 1 /f`
+	disableAutoSignOnCommand       = `cmd.exe /c reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v DisableAutomaticRestartSignOn /t REG_DWORD /d 1 /f`
+	disableWPBTCommand             = `cmd.exe /c reg add "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager" /v DisableWpbtExecution /t REG_DWORD /d 1 /f`
+	auditProcessCreationCommand    = `cmd.exe /c auditpol /set /subcategory:"Process Creation" /success:enable && reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1 /f`
+	hideEdgeFirstRunCommand        = `cmd.exe /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v HideFirstRunExperience /t REG_DWORD /d 1 /f`
+	disableEdgeStartupBoostCommand = `cmd.exe /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v StartupBoostEnabled /t REG_DWORD /d 0 /f && reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v BackgroundModeEnabled /t REG_DWORD /d 0 /f`
 )
 
 // Deployment is the Microsoft-Windows-Deployment component, specialize pass:
@@ -65,19 +79,38 @@ type Deployment struct {
 	RunSynchronous *runSynchronous `xml:"RunSynchronous,omitempty"`
 }
 
-// NewDeployment builds the specialize-pass component for the
-// DisableWindowsUpdate/DisableUAC/BypassOnlineAccountRequirement settings.
-// Returns nil when none are set: an empty component is not emitted.
+// NewDeployment builds the specialize-pass component for every profile
+// setting that maps to a single registry-editing command. Returns nil when
+// none are set: an empty component is not emitted.
 func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool) *Deployment {
+	enabledCommands := []struct {
+		enabled bool
+		command string
+	}{
+		{tweaks.DisableWindowsUpdate, disableWindowsUpdateCommand},
+		{tweaks.DisableUAC, disableUACCommand},
+		{bypassOnlineAccountRequirement, bypassOnlineAccountCommand},
+		{tweaks.DisableSmartAppControl, disableSmartAppControlCommand},
+		{tweaks.DisableSmartScreen, disableSmartScreenCommand},
+		{tweaks.DisableFastStartup, disableFastStartupCommand},
+		{tweaks.DisableSystemRestore, disableSystemRestoreCommand},
+		{tweaks.EnableLongPaths, enableLongPathsCommand},
+		{tweaks.EnableRemoteDesktop, enableRemoteDesktopCommand},
+		{tweaks.AllowPowerShellScripts, allowPowerShellScriptsCommand},
+		{tweaks.DisableLastAccessTimestamp, disableLastAccessCommand},
+		{tweaks.PreventDeviceEncryption, preventDeviceEncryptionCommand},
+		{tweaks.DisableAutoSignOnLastUser, disableAutoSignOnCommand},
+		{tweaks.DisableWPBT, disableWPBTCommand},
+		{tweaks.AuditProcessCreation, auditProcessCreationCommand},
+		{tweaks.HideEdgeFirstRun, hideEdgeFirstRunCommand},
+		{tweaks.DisableEdgeStartupBoost, disableEdgeStartupBoostCommand},
+	}
+
 	var commands []runSynchronousCommand
-	if tweaks.DisableWindowsUpdate {
-		commands = append(commands, newRunSynchronousCommand(len(commands)+1, disableWindowsUpdateCommand))
-	}
-	if tweaks.DisableUAC {
-		commands = append(commands, newRunSynchronousCommand(len(commands)+1, disableUACCommand))
-	}
-	if bypassOnlineAccountRequirement {
-		commands = append(commands, newRunSynchronousCommand(len(commands)+1, bypassOnlineAccountCommand))
+	for _, c := range enabledCommands {
+		if c.enabled {
+			commands = append(commands, newRunSynchronousCommand(len(commands)+1, c.command))
+		}
 	}
 	if len(commands) == 0 {
 		return nil
