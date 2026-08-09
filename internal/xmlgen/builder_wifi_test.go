@@ -66,6 +66,36 @@ func wifiCommandLine(t *testing.T, p *profile.Profile) string {
 	return ""
 }
 
+// allFirstLogonCommandLines returns every FirstLogonCommands CommandLine in
+// the oobeSystem Shell-Setup component, in Order.
+func allFirstLogonCommandLines(t *testing.T, p *profile.Profile) []string {
+	t.Helper()
+	xmlStr, err := BuildAnswerFile(p)
+	if err != nil {
+		t.Fatalf("BuildAnswerFile: %v", err)
+	}
+	var doc testWifiDoc
+	if err := xml.Unmarshal([]byte(xmlStr), &doc); err != nil {
+		t.Fatalf("Unmarshal result: %v\nxml:\n%s", err, xmlStr)
+	}
+	for _, s := range doc.Settings {
+		if s.Pass != "oobeSystem" {
+			continue
+		}
+		for _, c := range s.Components {
+			if c.Name != "Microsoft-Windows-Shell-Setup" || c.FirstLogonCommands == nil {
+				continue
+			}
+			lines := make([]string, len(c.FirstLogonCommands.SynchronousCommand))
+			for i, sc := range c.FirstLogonCommands.SynchronousCommand {
+				lines[i] = sc.CommandLine
+			}
+			return lines
+		}
+	}
+	return nil
+}
+
 // decodedWlanProfile extracts and base64-decodes the WLAN profile XML
 // embedded in a `netsh wlan add profile` command line.
 func decodedWlanProfile(t *testing.T, commandLine string) string {
