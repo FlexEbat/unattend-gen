@@ -117,6 +117,59 @@ type WifiSettings struct {
 	ConnectHidden  bool               `json:"connect_hidden"`
 }
 
+// RemovableApp is a preinstalled app xmlgen knows how to remove. The set is
+// intentionally not every app schneegans.de/windows/unattend-generator
+// offers: apps removed via Remove-WindowsCapability (Internet Explorer,
+// WordPad, legacy PowerShell, Speech, ...) need a different mechanism and
+// aren't covered yet.
+type RemovableApp string
+
+const (
+	App3DViewer            RemovableApp = "3DViewer"
+	AppCalculator          RemovableApp = "Calculator"
+	AppCamera              RemovableApp = "Camera"
+	AppClipchamp           RemovableApp = "Clipchamp"
+	AppClock               RemovableApp = "Clock"
+	AppCopilot             RemovableApp = "Copilot"
+	AppCortana             RemovableApp = "Cortana"
+	AppFamily              RemovableApp = "Family"
+	AppFeedbackHub         RemovableApp = "FeedbackHub"
+	AppGetHelp             RemovableApp = "GetHelp"
+	AppMailAndCalendar     RemovableApp = "MailAndCalendar"
+	AppMaps                RemovableApp = "Maps"
+	AppMixedReality        RemovableApp = "MixedReality"
+	AppMoviesAndTV         RemovableApp = "MoviesAndTV"
+	AppNews                RemovableApp = "News"
+	AppOffice              RemovableApp = "Office"
+	AppOneNote             RemovableApp = "OneNote"
+	AppPaint3D             RemovableApp = "Paint3D"
+	AppPeople              RemovableApp = "People"
+	AppPhoneLink           RemovableApp = "PhoneLink"
+	AppPowerAutomate       RemovableApp = "PowerAutomate"
+	AppQuickAssist         RemovableApp = "QuickAssist"
+	AppSkype               RemovableApp = "Skype"
+	AppSnippingTool        RemovableApp = "SnippingTool"
+	AppSolitaireCollection RemovableApp = "SolitaireCollection"
+	AppStickyNotes         RemovableApp = "StickyNotes"
+	AppTeams               RemovableApp = "Teams"
+	AppTips                RemovableApp = "Tips"
+	AppToDo                RemovableApp = "ToDo"
+	AppVoiceRecorder       RemovableApp = "VoiceRecorder"
+	AppWeather             RemovableApp = "Weather"
+	AppXboxApps            RemovableApp = "XboxApps"
+)
+
+// RemovableApps lists every valid RemoveApps entry, in the order shown in
+// the TUI.
+var RemovableApps = []RemovableApp{
+	App3DViewer, AppCalculator, AppCamera, AppClipchamp, AppClock, AppCopilot,
+	AppCortana, AppFamily, AppFeedbackHub, AppGetHelp, AppMailAndCalendar,
+	AppMaps, AppMixedReality, AppMoviesAndTV, AppNews, AppOffice, AppOneNote,
+	AppPaint3D, AppPeople, AppPhoneLink, AppPowerAutomate, AppQuickAssist,
+	AppSkype, AppSnippingTool, AppSolitaireCollection, AppStickyNotes,
+	AppTeams, AppTips, AppToDo, AppVoiceRecorder, AppWeather, AppXboxApps,
+}
+
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
 	SchemaVersion                  int              `json:"schema_version" validate:"required,eq=1"`
@@ -131,6 +184,7 @@ type Profile struct {
 	SystemTweaks                   SystemTweaks     `json:"system_tweaks"`
 	Wifi                           *WifiSettings    `json:"wifi"` // nil = Wi-Fi setup is skipped
 	BypassOnlineAccountRequirement bool             `json:"bypass_online_account_requirement"`
+	RemoveApps                     []RemovableApp   `json:"remove_apps"`
 }
 
 // Default returns a profile that passes ValidateProfile: no accounts, no
