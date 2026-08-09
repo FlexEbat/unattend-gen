@@ -81,9 +81,23 @@ type ExpressSettings struct {
 
 // SystemTweaks are boolean registry tweaks applied during specialize.
 type SystemTweaks struct {
-	DisableWindowsUpdate    bool `json:"disable_windows_update"`
-	DisableUAC              bool `json:"disable_uac"`
-	BypassWin11Requirements bool `json:"bypass_win11_requirements"`
+	DisableWindowsUpdate       bool `json:"disable_windows_update"`
+	DisableUAC                 bool `json:"disable_uac"`
+	BypassWin11Requirements    bool `json:"bypass_win11_requirements"`
+	DisableSmartAppControl     bool `json:"disable_smart_app_control"`
+	DisableSmartScreen         bool `json:"disable_smart_screen"`
+	DisableFastStartup         bool `json:"disable_fast_startup"`
+	DisableSystemRestore       bool `json:"disable_system_restore"`
+	EnableLongPaths            bool `json:"enable_long_paths"`
+	EnableRemoteDesktop        bool `json:"enable_remote_desktop"`
+	AllowPowerShellScripts     bool `json:"allow_powershell_scripts"`
+	DisableLastAccessTimestamp bool `json:"disable_last_access_timestamp"`
+	PreventDeviceEncryption    bool `json:"prevent_device_encryption"`
+	DisableAutoSignOnLastUser  bool `json:"disable_auto_sign_on_last_user"`
+	DisableWPBT                bool `json:"disable_wpbt"`
+	AuditProcessCreation       bool `json:"audit_process_creation"`
+	HideEdgeFirstRun           bool `json:"hide_edge_first_run"`
+	DisableEdgeStartupBoost    bool `json:"disable_edge_startup_boost"`
 }
 
 // WifiAuthentication is the authentication type of a pre-configured Wi-Fi profile.
