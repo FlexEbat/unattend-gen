@@ -65,7 +65,7 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
-	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement); shellOOBE != nil {
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps); shellOOBE != nil {
 		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
 	}
 
