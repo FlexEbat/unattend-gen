@@ -51,6 +51,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateAccounts(p.Accounts)...)
 	errs = append(errs, validateFirstLogon(p.FirstLogon, p.Accounts)...)
 	errs = append(errs, validateWifi(p.Wifi)...)
+	errs = append(errs, validateRemoveApps(p.RemoveApps)...)
 
 	if len(errs) > 0 {
 		return ValidationResult{Errors: errs}
@@ -179,6 +180,23 @@ func validateWifi(w *WifiSettings) []string {
 	if w.Authentication != WifiOpen {
 		if w.Password == nil || len(*w.Password) < 8 {
 			errs = append(errs, "Пароль Wi-Fi обязателен и должен быть не короче 8 символов для WPA2/WPA3")
+		}
+	}
+	return errs
+}
+
+func validateRemoveApps(apps []RemovableApp) []string {
+	var errs []string
+	for _, a := range apps {
+		known := false
+		for _, allowed := range RemovableApps {
+			if a == allowed {
+				known = true
+				break
+			}
+		}
+		if !known {
+			errs = append(errs, "Неизвестное приложение для удаления: "+string(a))
 		}
 	}
 	return errs
