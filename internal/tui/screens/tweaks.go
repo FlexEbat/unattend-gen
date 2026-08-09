@@ -13,32 +13,97 @@ var expressModeOptions = []widgets.SelectOption{
 	{Value: string(profile.ExpressAllDisabled), Label: "Disable all categories"},
 }
 
+// tweakLabels is the fixed display order for the SystemTweaks checkboxes.
+// tweaksToValues/valuesToTweaks below must list the fields in this same
+// order.
+var tweakLabels = [tweaksCount]string{
+	"Disable Windows Update",
+	"Disable UAC",
+	"Bypass Windows 11 hardware requirements",
+	"Disable Smart App Control",
+	"Disable SmartScreen (Windows and Edge)",
+	"Disable Fast Startup",
+	"Disable System Restore",
+	"Enable long paths",
+	"Enable Remote Desktop (RDP)",
+	"Allow PowerShell script execution",
+	"Disable last access timestamp",
+	"Prevent automatic device encryption",
+	"Disable auto sign-on of last user after restart",
+	"Disable WPBT execution",
+	"Audit process creation (with command line)",
+	"Hide Edge first run experience",
+	"Disable Edge startup boost / background mode",
+}
+
+const tweaksCount = 17
+
 // Tweaks is the express settings / system tweaks screen.
 type Tweaks struct {
-	profile              *profile.Profile
-	expressMode          widgets.LabeledSelect
-	disableWindowsUpdate widgets.Checkbox
-	disableUAC           widgets.Checkbox
-	bypassWin11          widgets.Checkbox
-	focus                int
-	bar                  widgets.ConfirmBar
+	profile     *profile.Profile
+	expressMode widgets.LabeledSelect
+	checks      [tweaksCount]widgets.Checkbox
+	focus       int
+	bar         widgets.ConfirmBar
 }
 
 // NewTweaks builds the tweaks screen backed by profile.
 func NewTweaks(p *profile.Profile) Tweaks {
 	t := Tweaks{
-		profile:              p,
-		expressMode:          widgets.NewLabeledSelect("Express settings", expressModeOptions),
-		disableWindowsUpdate: widgets.Checkbox{Label: "Disable Windows Update"},
-		disableUAC:           widgets.Checkbox{Label: "Disable UAC"},
-		bypassWin11:          widgets.Checkbox{Label: "Bypass Windows 11 hardware requirements"},
-		bar:                  widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
+		profile:     p,
+		expressMode: widgets.NewLabeledSelect("Express settings", expressModeOptions),
+		bar:         widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 	}
 	t.expressMode.SetValue(string(p.ExpressSettings.Mode))
-	t.disableWindowsUpdate.Checked = p.SystemTweaks.DisableWindowsUpdate
-	t.disableUAC.Checked = p.SystemTweaks.DisableUAC
-	t.bypassWin11.Checked = p.SystemTweaks.BypassWin11Requirements
+	values := tweaksToValues(p.SystemTweaks)
+	for i, label := range tweakLabels {
+		t.checks[i] = widgets.Checkbox{Label: label, Checked: values[i]}
+	}
 	return t
+}
+
+func tweaksToValues(tw profile.SystemTweaks) [tweaksCount]bool {
+	return [tweaksCount]bool{
+		tw.DisableWindowsUpdate,
+		tw.DisableUAC,
+		tw.BypassWin11Requirements,
+		tw.DisableSmartAppControl,
+		tw.DisableSmartScreen,
+		tw.DisableFastStartup,
+		tw.DisableSystemRestore,
+		tw.EnableLongPaths,
+		tw.EnableRemoteDesktop,
+		tw.AllowPowerShellScripts,
+		tw.DisableLastAccessTimestamp,
+		tw.PreventDeviceEncryption,
+		tw.DisableAutoSignOnLastUser,
+		tw.DisableWPBT,
+		tw.AuditProcessCreation,
+		tw.HideEdgeFirstRun,
+		tw.DisableEdgeStartupBoost,
+	}
+}
+
+func valuesToTweaks(v [tweaksCount]bool) profile.SystemTweaks {
+	return profile.SystemTweaks{
+		DisableWindowsUpdate:       v[0],
+		DisableUAC:                 v[1],
+		BypassWin11Requirements:    v[2],
+		DisableSmartAppControl:     v[3],
+		DisableSmartScreen:         v[4],
+		DisableFastStartup:         v[5],
+		DisableSystemRestore:       v[6],
+		EnableLongPaths:            v[7],
+		EnableRemoteDesktop:        v[8],
+		AllowPowerShellScripts:     v[9],
+		DisableLastAccessTimestamp: v[10],
+		PreventDeviceEncryption:    v[11],
+		DisableAutoSignOnLastUser:  v[12],
+		DisableWPBT:                v[13],
+		AuditProcessCreation:       v[14],
+		HideEdgeFirstRun:           v[15],
+		DisableEdgeStartupBoost:    v[16],
+	}
 }
 
 // Init is a no-op: the select list handles its own focus internally.
@@ -46,15 +111,17 @@ func (t Tweaks) Init() tea.Cmd {
 	return nil
 }
 
-const tweaksFieldCount = 4
+// fieldCount: field 0 is the express-settings select, fields 1..tweaksCount
+// are the checkboxes.
+const tweaksFieldCount = 1 + tweaksCount
 
 func (t *Tweaks) sync() {
 	t.profile.ExpressSettings.Mode = profile.ExpressSettingsMode(t.expressMode.Value())
-	t.profile.SystemTweaks = profile.SystemTweaks{
-		DisableWindowsUpdate:    t.disableWindowsUpdate.Checked,
-		DisableUAC:              t.disableUAC.Checked,
-		BypassWin11Requirements: t.bypassWin11.Checked,
+	var values [tweaksCount]bool
+	for i, c := range t.checks {
+		values[i] = c.Checked
 	}
+	t.profile.SystemTweaks = valuesToTweaks(values)
 }
 
 // Update handles focus cycling, checkbox toggling and screen navigation.
@@ -68,13 +135,9 @@ func (t Tweaks) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			t.focus = (t.focus - 1 + tweaksFieldCount) % tweaksFieldCount
 			return t, nil
 		case " ", "enter":
-			switch t.focus {
-			case 1:
-				t.disableWindowsUpdate.Checked = !t.disableWindowsUpdate.Checked
-			case 2:
-				t.disableUAC.Checked = !t.disableUAC.Checked
-			case 3:
-				t.bypassWin11.Checked = !t.bypassWin11.Checked
+			if t.focus >= 1 {
+				idx := t.focus - 1
+				t.checks[idx].Checked = !t.checks[idx].Checked
 			}
 			t.sync()
 			return t, nil
@@ -98,12 +161,12 @@ func (t Tweaks) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return t, cmd
 }
 
-// View renders the express settings selector and the three checkboxes.
+// View renders the express settings selector and every tweak checkbox.
 func (t Tweaks) View() string {
 	out := t.expressMode.View() + "\n\n"
-	out += t.disableWindowsUpdate.View(t.focus == 1) + "\n"
-	out += t.disableUAC.View(t.focus == 2) + "\n"
-	out += t.bypassWin11.View(t.focus == 3)
-	out += "\n\n" + t.bar.View()
+	for i, c := range t.checks {
+		out += c.View(t.focus == i+1) + "\n"
+	}
+	out += "\n" + t.bar.View()
 	return out
 }
