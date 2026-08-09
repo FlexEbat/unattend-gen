@@ -24,6 +24,7 @@ no matter how it was filled in.
   Microsoft has patched around this more than once, so it isn't guaranteed on
   every Windows build)
 - Wi-Fi profile (SSID, WPA2/WPA3/open, hidden networks)
+- Remove preinstalled apps (Xbox, Teams, Solitaire, Cortana, and 28 more)
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
