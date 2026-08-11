@@ -52,6 +52,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateFirstLogon(p.FirstLogon, p.Accounts)...)
 	errs = append(errs, validateWifi(p.Wifi)...)
 	errs = append(errs, validateRemoveApps(p.RemoveApps)...)
+	errs = append(errs, validateDefaultUserScripts(p.DefaultUserScripts)...)
 
 	if len(errs) > 0 {
 		return ValidationResult{Errors: errs}
@@ -197,6 +198,16 @@ func validateRemoveApps(apps []RemovableApp) []string {
 		}
 		if !known {
 			errs = append(errs, "Неизвестное приложение для удаления: "+string(a))
+		}
+	}
+	return errs
+}
+
+func validateDefaultUserScripts(scripts []CustomScript) []string {
+	var errs []string
+	for _, s := range scripts {
+		if s.Format == ScriptVbs {
+			errs = append(errs, "Скрипты DefaultUser не поддерживают формат .vbs")
 		}
 	}
 	return errs
