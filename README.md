@@ -25,6 +25,9 @@ no matter how it was filled in.
   every Windows build)
 - Wi-Fi profile (SSID, WPA2/WPA3/open, hidden networks)
 - Remove preinstalled apps (Xbox, Teams, Solitaire, Cortana, and 28 more)
+- Custom scripts (.cmd/.ps1/.reg/.vbs) at four points: System (before
+  accounts exist), DefaultUser (every account, including future ones),
+  FirstLogon (once) and UserOnce (once per account)
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
