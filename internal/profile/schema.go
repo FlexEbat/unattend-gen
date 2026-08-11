@@ -170,6 +170,24 @@ var RemovableApps = []RemovableApp{
 	AppTeams, AppTips, AppToDo, AppVoiceRecorder, AppWeather, AppXboxApps,
 }
 
+// ScriptFormat is the file format a CustomScript is written and run as.
+type ScriptFormat string
+
+const (
+	ScriptCmd ScriptFormat = "cmd"
+	ScriptPs1 ScriptFormat = "ps1"
+	ScriptReg ScriptFormat = "reg"
+	ScriptVbs ScriptFormat = "vbs"
+)
+
+// CustomScript is one script to run during setup, in one of System,
+// DefaultUser, FirstLogon or UserOnce (see Profile). DefaultUser scripts
+// don't support ScriptVbs.
+type CustomScript struct {
+	Format  ScriptFormat `json:"format" validate:"required,oneof=cmd ps1 reg vbs"`
+	Content string       `json:"content" validate:"required"`
+}
+
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
 	SchemaVersion                  int              `json:"schema_version" validate:"required,eq=1"`
@@ -185,6 +203,26 @@ type Profile struct {
 	Wifi                           *WifiSettings    `json:"wifi"` // nil = Wi-Fi setup is skipped
 	BypassOnlineAccountRequirement bool             `json:"bypass_online_account_requirement"`
 	RemoveApps                     []RemovableApp   `json:"remove_apps"`
+	// SystemScripts run in the system context, before user accounts are
+	// created. Max 4.
+	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`
+	// DefaultUserScripts modify C:\Users\Default\NTUSER.DAT (the template
+	// every new account is created from), so they affect every account,
+	// including ones created after setup. Run after SystemScripts, before
+	// accounts are created. Max 3, no ScriptVbs.
+	DefaultUserScripts []CustomScript `json:"default_user_scripts" validate:"max=3,dive"`
+	// FirstLogonScripts run once, when the first user logs on (typically
+	// the account used for auto-logon). Max 4.
+	FirstLogonScripts []CustomScript `json:"first_logon_scripts" validate:"max=4,dive"`
+	// UserOnceScripts run once for every user the first time they log on,
+	// including accounts created after setup — implemented via a RunOnce
+	// entry written to the default user hive, same as DefaultUserScripts.
+	// Max 4.
+	UserOnceScripts []CustomScript `json:"user_once_scripts" validate:"max=4,dive"`
+	// RestartExplorerAfterScripts restarts explorer.exe once FirstLogon and
+	// UserOnce scripts have run, so Start menu/taskbar changes take effect
+	// immediately.
+	RestartExplorerAfterScripts bool `json:"restart_explorer_after_scripts"`
 }
 
 // Default returns a profile that passes ValidateProfile: no accounts, no
