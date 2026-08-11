@@ -38,6 +38,7 @@ func NewModel(initial *profile.Profile) Model {
 			screens.ScreenTweaks:   screens.NewTweaks(initial),
 			screens.ScreenWifi:     screens.NewWifi(initial),
 			screens.ScreenApps:     screens.NewApps(initial),
+			screens.ScreenScripts:  screens.NewScripts(initial),
 			screens.ScreenReview:   screens.NewReview(initial),
 		},
 	}
@@ -96,6 +97,8 @@ func rebuildScreen(id screens.ID, p *profile.Profile) tea.Model {
 		return screens.NewWifi(p)
 	case screens.ScreenApps:
 		return screens.NewApps(p)
+	case screens.ScreenScripts:
+		return screens.NewScripts(p)
 	default:
 		return screens.NewReview(p)
 	}

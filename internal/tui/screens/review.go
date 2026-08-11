@@ -55,7 +55,7 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "esc":
-			return r, Navigate(ScreenApps)
+			return r, Navigate(ScreenScripts)
 		case "s":
 			r.build()
 			if r.err != "" {
