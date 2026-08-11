@@ -82,7 +82,13 @@ type Deployment struct {
 // NewDeployment builds the specialize-pass component for every profile
 // setting that maps to a single registry-editing command. Returns nil when
 // none are set: an empty component is not emitted.
-func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool) *Deployment {
+// NewDeployment builds the specialize-pass component for every profile
+// setting that maps to a single registry-editing or script-running
+// command: system tweaks, the online-account bypass, System scripts,
+// DefaultUser scripts and the UserOnce RunOnce registration (in that
+// order). Returns nil when none are set: an empty component is not
+// emitted.
+func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
 	enabledCommands := []struct {
 		enabled bool
 		command string
@@ -111,6 +117,15 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		if c.enabled {
 			commands = append(commands, newRunSynchronousCommand(len(commands)+1, c.command))
 		}
+	}
+	for _, cmd := range SystemScriptsCommands(systemScripts) {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := DefaultUserScriptCommand(defaultUserScripts); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := UserOnceScriptCommand(userOnceScripts); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
 	if len(commands) == 0 {
 		return nil
@@ -200,7 +215,7 @@ type ShellSetupOOBE struct {
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
 // firstLogon, express and wifi. It returns nil when there is nothing to
 // configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp) *ShellSetupOOBE {
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -281,6 +296,12 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 	}
 	if cmd := RemoveAppsFirstLogonCommand(removeApps); cmd != "" {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
+	}
+	for _, cmd := range FirstLogonScriptsCommands(firstLogonScripts) {
+		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
+	}
+	if restartExplorerAfterScripts && len(flCommands) > 0 {
+		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: RestartExplorerCommand()})
 	}
 	var flc *firstLogonCommands
 	if len(flCommands) > 0 {
