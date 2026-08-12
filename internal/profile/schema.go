@@ -170,6 +170,31 @@ var RemovableApps = []RemovableApp{
 	AppTeams, AppTips, AppToDo, AppVoiceRecorder, AppWeather, AppXboxApps,
 }
 
+// RemovableFeature is a Windows capability (DISM Get-WindowsCapability /
+// Remove-WindowsCapability) xmlgen knows how to remove. Different mechanism
+// from RemovableApp (Appx packages): PowerShell 2.0 and Windows Fax and
+// Scan are on schneegans.de's list too but use a third mechanism (legacy
+// Windows optional features, Disable-WindowsOptionalFeature) not covered
+// here.
+type RemovableFeature string
+
+const (
+	FeatureInternetExplorer RemovableFeature = "InternetExplorer"
+	FeatureWordPad          RemovableFeature = "WordPad"
+	FeaturePowerShellISE    RemovableFeature = "PowerShellISE"
+	FeatureOpenSSHClient    RemovableFeature = "OpenSSHClient"
+	FeatureMediaPlayer      RemovableFeature = "MediaPlayer"
+	FeatureSpeech           RemovableFeature = "Speech"
+	FeatureHandwriting      RemovableFeature = "Handwriting"
+)
+
+// RemovableFeatures lists every valid RemoveFeatures entry, in the order
+// shown in the TUI.
+var RemovableFeatures = []RemovableFeature{
+	FeatureInternetExplorer, FeatureWordPad, FeaturePowerShellISE,
+	FeatureOpenSSHClient, FeatureMediaPlayer, FeatureSpeech, FeatureHandwriting,
+}
+
 // ScriptFormat is the file format a CustomScript is written and run as.
 type ScriptFormat string
 
@@ -190,19 +215,20 @@ type CustomScript struct {
 
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
-	SchemaVersion                  int              `json:"schema_version" validate:"required,eq=1"`
-	Name                           string           `json:"name" validate:"required"`
-	Language                       LanguageSettings `json:"language"`
-	Edition                        EditionSettings  `json:"edition"`
-	ComputerName                   *string          `json:"computer_name"` // nil = Windows generates a random name
-	Timezone                       *string          `json:"timezone"`      // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
-	Accounts                       []UserAccount    `json:"accounts" validate:"max=5,dive"`
-	FirstLogon                     FirstLogon       `json:"first_logon"`
-	ExpressSettings                ExpressSettings  `json:"express_settings"`
-	SystemTweaks                   SystemTweaks     `json:"system_tweaks"`
-	Wifi                           *WifiSettings    `json:"wifi"` // nil = Wi-Fi setup is skipped
-	BypassOnlineAccountRequirement bool             `json:"bypass_online_account_requirement"`
-	RemoveApps                     []RemovableApp   `json:"remove_apps"`
+	SchemaVersion                  int                `json:"schema_version" validate:"required,eq=1"`
+	Name                           string             `json:"name" validate:"required"`
+	Language                       LanguageSettings   `json:"language"`
+	Edition                        EditionSettings    `json:"edition"`
+	ComputerName                   *string            `json:"computer_name"` // nil = Windows generates a random name
+	Timezone                       *string            `json:"timezone"`      // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
+	Accounts                       []UserAccount      `json:"accounts" validate:"max=5,dive"`
+	FirstLogon                     FirstLogon         `json:"first_logon"`
+	ExpressSettings                ExpressSettings    `json:"express_settings"`
+	SystemTweaks                   SystemTweaks       `json:"system_tweaks"`
+	Wifi                           *WifiSettings      `json:"wifi"` // nil = Wi-Fi setup is skipped
+	BypassOnlineAccountRequirement bool               `json:"bypass_online_account_requirement"`
+	RemoveApps                     []RemovableApp     `json:"remove_apps"`
+	RemoveFeatures                 []RemovableFeature `json:"remove_features"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`
