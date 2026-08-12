@@ -53,6 +53,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateWifi(p.Wifi)...)
 	errs = append(errs, validateRemoveApps(p.RemoveApps)...)
 	errs = append(errs, validateDefaultUserScripts(p.DefaultUserScripts)...)
+	errs = append(errs, validateRemoveFeatures(p.RemoveFeatures)...)
 
 	if len(errs) > 0 {
 		return ValidationResult{Errors: errs}
@@ -208,6 +209,23 @@ func validateDefaultUserScripts(scripts []CustomScript) []string {
 	for _, s := range scripts {
 		if s.Format == ScriptVbs {
 			errs = append(errs, "Скрипты DefaultUser не поддерживают формат .vbs")
+		}
+	}
+	return errs
+}
+
+func validateRemoveFeatures(features []RemovableFeature) []string {
+	var errs []string
+	for _, f := range features {
+		known := false
+		for _, allowed := range RemovableFeatures {
+			if f == allowed {
+				known = true
+				break
+			}
+		}
+		if !known {
+			errs = append(errs, "Неизвестный компонент для удаления: "+string(f))
 		}
 	}
 	return errs
