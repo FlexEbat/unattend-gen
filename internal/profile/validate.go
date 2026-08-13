@@ -54,6 +54,8 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateRemoveApps(p.RemoveApps)...)
 	errs = append(errs, validateDefaultUserScripts(p.DefaultUserScripts)...)
 	errs = append(errs, validateRemoveFeatures(p.RemoveFeatures)...)
+	errs = append(errs, validatePasswordExpiration(p.PasswordExpiration)...)
+	errs = append(errs, validateAccountLockout(p.AccountLockout)...)
 
 	if len(errs) > 0 {
 		return ValidationResult{Errors: errs}
@@ -227,6 +229,33 @@ func validateRemoveFeatures(features []RemovableFeature) []string {
 		if !known {
 			errs = append(errs, "Неизвестный компонент для удаления: "+string(f))
 		}
+	}
+	return errs
+}
+
+func validatePasswordExpiration(s PasswordExpirationSettings) []string {
+	if s.Mode != PasswordExpirationCustom {
+		return nil
+	}
+	if s.Days == nil || *s.Days < 1 {
+		return []string{"Для custom-режима срока действия пароля нужно указать days >= 1"}
+	}
+	return nil
+}
+
+func validateAccountLockout(s AccountLockoutSettings) []string {
+	if s.Mode != AccountLockoutCustom {
+		return nil
+	}
+	var errs []string
+	if s.Threshold == nil || *s.Threshold < 1 {
+		errs = append(errs, "Для custom-политики блокировки нужно указать threshold >= 1")
+	}
+	if s.WindowMinutes == nil || *s.WindowMinutes < 1 {
+		errs = append(errs, "Для custom-политики блокировки нужно указать window_minutes >= 1")
+	}
+	if s.DurationMinutes == nil || *s.DurationMinutes < 1 {
+		errs = append(errs, "Для custom-политики блокировки нужно указать duration_minutes >= 1")
 	}
 	return errs
 }
