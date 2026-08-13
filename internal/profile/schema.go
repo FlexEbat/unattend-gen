@@ -213,22 +213,60 @@ type CustomScript struct {
 	Content string       `json:"content" validate:"required"`
 }
 
+// PasswordExpirationMode controls whether local account passwords expire.
+type PasswordExpirationMode string
+
+const (
+	PasswordExpirationDefault PasswordExpirationMode = "default" // Windows default: 42 days
+	PasswordExpirationNever   PasswordExpirationMode = "never"   // NIST no longer recommends expiration
+	PasswordExpirationCustom  PasswordExpirationMode = "custom"
+)
+
+// PasswordExpirationSettings maps to `net accounts /maxpwage`. The empty
+// Mode ("") behaves like PasswordExpirationDefault: no command is emitted,
+// Windows' own default (42 days) applies.
+type PasswordExpirationSettings struct {
+	Mode PasswordExpirationMode `json:"mode" validate:"omitempty,oneof=default never custom"`
+	Days *int                   `json:"days"` // required when Mode == custom
+}
+
+// AccountLockoutMode controls the local account lockout policy.
+type AccountLockoutMode string
+
+const (
+	AccountLockoutDefault  AccountLockoutMode = "default" // Windows default: 10 attempts / 10 min window / 10 min duration
+	AccountLockoutDisabled AccountLockoutMode = "disabled"
+	AccountLockoutCustom   AccountLockoutMode = "custom"
+)
+
+// AccountLockoutSettings maps to `net accounts /lockoutthreshold` etc. The
+// empty Mode ("") behaves like AccountLockoutDefault: no command is
+// emitted, Windows' own default applies.
+type AccountLockoutSettings struct {
+	Mode            AccountLockoutMode `json:"mode" validate:"omitempty,oneof=default disabled custom"`
+	Threshold       *int               `json:"threshold"`        // failed attempts; required when Mode == custom
+	WindowMinutes   *int               `json:"window_minutes"`   // required when Mode == custom
+	DurationMinutes *int               `json:"duration_minutes"` // required when Mode == custom
+}
+
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
-	SchemaVersion                  int                `json:"schema_version" validate:"required,eq=1"`
-	Name                           string             `json:"name" validate:"required"`
-	Language                       LanguageSettings   `json:"language"`
-	Edition                        EditionSettings    `json:"edition"`
-	ComputerName                   *string            `json:"computer_name"` // nil = Windows generates a random name
-	Timezone                       *string            `json:"timezone"`      // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
-	Accounts                       []UserAccount      `json:"accounts" validate:"max=5,dive"`
-	FirstLogon                     FirstLogon         `json:"first_logon"`
-	ExpressSettings                ExpressSettings    `json:"express_settings"`
-	SystemTweaks                   SystemTweaks       `json:"system_tweaks"`
-	Wifi                           *WifiSettings      `json:"wifi"` // nil = Wi-Fi setup is skipped
-	BypassOnlineAccountRequirement bool               `json:"bypass_online_account_requirement"`
-	RemoveApps                     []RemovableApp     `json:"remove_apps"`
-	RemoveFeatures                 []RemovableFeature `json:"remove_features"`
+	SchemaVersion                  int                        `json:"schema_version" validate:"required,eq=1"`
+	Name                           string                     `json:"name" validate:"required"`
+	Language                       LanguageSettings           `json:"language"`
+	Edition                        EditionSettings            `json:"edition"`
+	ComputerName                   *string                    `json:"computer_name"` // nil = Windows generates a random name
+	Timezone                       *string                    `json:"timezone"`      // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
+	Accounts                       []UserAccount              `json:"accounts" validate:"max=5,dive"`
+	FirstLogon                     FirstLogon                 `json:"first_logon"`
+	ExpressSettings                ExpressSettings            `json:"express_settings"`
+	SystemTweaks                   SystemTweaks               `json:"system_tweaks"`
+	Wifi                           *WifiSettings              `json:"wifi"` // nil = Wi-Fi setup is skipped
+	BypassOnlineAccountRequirement bool                       `json:"bypass_online_account_requirement"`
+	RemoveApps                     []RemovableApp             `json:"remove_apps"`
+	RemoveFeatures                 []RemovableFeature         `json:"remove_features"`
+	PasswordExpiration             PasswordExpirationSettings `json:"password_expiration"`
+	AccountLockout                 AccountLockoutSettings     `json:"account_lockout"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`
