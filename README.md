@@ -29,6 +29,7 @@ no matter how it was filled in.
 - Custom scripts (.cmd/.ps1/.reg/.vbs) at four points: System (before
   accounts exist), DefaultUser (every account, including future ones),
   FirstLogon (once) and UserOnce (once per account)
+- Password expiration and account lockout policy
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
