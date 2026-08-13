@@ -1,6 +1,9 @@
 package screens
 
 import (
+	"strconv"
+
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/FlexEbat/unattend-gen/internal/profile"
@@ -11,6 +14,18 @@ var expressModeOptions = []widgets.SelectOption{
 	{Value: string(profile.ExpressInteractive), Label: "Interactive (ask during setup)"},
 	{Value: string(profile.ExpressAllEnabled), Label: "Enable all categories"},
 	{Value: string(profile.ExpressAllDisabled), Label: "Disable all categories"},
+}
+
+var passwordExpirationOptions = []widgets.SelectOption{
+	{Value: string(profile.PasswordExpirationDefault), Label: "Windows default (42 days)"},
+	{Value: string(profile.PasswordExpirationNever), Label: "Never expires"},
+	{Value: string(profile.PasswordExpirationCustom), Label: "Custom (days)"},
+}
+
+var accountLockoutOptions = []widgets.SelectOption{
+	{Value: string(profile.AccountLockoutDefault), Label: "Windows default (10 attempts / 10 min)"},
+	{Value: string(profile.AccountLockoutDisabled), Label: "Disabled"},
+	{Value: string(profile.AccountLockoutCustom), Label: "Custom"},
 }
 
 // tweakLabels is the fixed display order for the SystemTweaks checkboxes.
@@ -38,26 +53,63 @@ var tweakLabels = [tweaksCount]string{
 
 const tweaksCount = 17
 
-// Tweaks is the express settings / system tweaks screen.
+// Tweaks is the express settings / system tweaks / account policy screen.
 type Tweaks struct {
 	profile     *profile.Profile
 	expressMode widgets.LabeledSelect
 	checks      [tweaksCount]widgets.Checkbox
-	focus       int
-	bar         widgets.ConfirmBar
+
+	passwordExpirationMode widgets.LabeledSelect
+	passwordExpirationDays widgets.LabeledInput
+
+	accountLockoutMode      widgets.LabeledSelect
+	accountLockoutThreshold widgets.LabeledInput
+	accountLockoutWindow    widgets.LabeledInput
+	accountLockoutDuration  widgets.LabeledInput
+
+	focus int
+	bar   widgets.ConfirmBar
 }
 
 // NewTweaks builds the tweaks screen backed by profile.
 func NewTweaks(p *profile.Profile) Tweaks {
 	t := Tweaks{
-		profile:     p,
-		expressMode: widgets.NewLabeledSelect("Express settings", expressModeOptions),
-		bar:         widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
+		profile:                 p,
+		expressMode:             widgets.NewLabeledSelect("Express settings", expressModeOptions),
+		passwordExpirationMode:  widgets.NewLabeledSelect("Password expiration", passwordExpirationOptions),
+		passwordExpirationDays:  widgets.NewLabeledInput("Days", "90"),
+		accountLockoutMode:      widgets.NewLabeledSelect("Account lockout policy", accountLockoutOptions),
+		accountLockoutThreshold: widgets.NewLabeledInput("Failed attempts", "10"),
+		accountLockoutWindow:    widgets.NewLabeledInput("Window (minutes)", "10"),
+		accountLockoutDuration:  widgets.NewLabeledInput("Duration (minutes)", "10"),
+		bar:                     widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 	}
 	t.expressMode.SetValue(string(p.ExpressSettings.Mode))
 	values := tweaksToValues(p.SystemTweaks)
 	for i, label := range tweakLabels {
 		t.checks[i] = widgets.Checkbox{Label: label, Checked: values[i]}
+	}
+
+	t.passwordExpirationMode.SetValue(string(profile.PasswordExpirationDefault))
+	if p.PasswordExpiration.Mode != "" {
+		t.passwordExpirationMode.SetValue(string(p.PasswordExpiration.Mode))
+	}
+	if p.PasswordExpiration.Days != nil {
+		t.passwordExpirationDays.SetValue(strconv.Itoa(*p.PasswordExpiration.Days))
+	}
+
+	t.accountLockoutMode.SetValue(string(profile.AccountLockoutDefault))
+	if p.AccountLockout.Mode != "" {
+		t.accountLockoutMode.SetValue(string(p.AccountLockout.Mode))
+	}
+	if p.AccountLockout.Threshold != nil {
+		t.accountLockoutThreshold.SetValue(strconv.Itoa(*p.AccountLockout.Threshold))
+	}
+	if p.AccountLockout.WindowMinutes != nil {
+		t.accountLockoutWindow.SetValue(strconv.Itoa(*p.AccountLockout.WindowMinutes))
+	}
+	if p.AccountLockout.DurationMinutes != nil {
+		t.accountLockoutDuration.SetValue(strconv.Itoa(*p.AccountLockout.DurationMinutes))
 	}
 	return t
 }
@@ -106,14 +158,46 @@ func valuesToTweaks(v [tweaksCount]bool) profile.SystemTweaks {
 	}
 }
 
-// Init is a no-op: the select list handles its own focus internally.
+// Init returns the cursor-blink command for the text inputs; the focus
+// state itself doesn't need setting here (default focus 0 is the
+// express-settings select, which doesn't need an explicit Focus() call).
 func (t Tweaks) Init() tea.Cmd {
-	return nil
+	return textinput.Blink
 }
 
-// fieldCount: field 0 is the express-settings select, fields 1..tweaksCount
-// are the checkboxes.
-const tweaksFieldCount = 1 + tweaksCount
+// Field layout (indices, computed since two groups are conditional):
+//
+//	0                                  expressMode
+//	1..tweaksCount                     checks
+//	pwModeIdx                          passwordExpirationMode
+//	pwDaysIdx (only if mode==custom)   passwordExpirationDays
+//	lockoutModeIdx                     accountLockoutMode
+//	lockoutModeIdx+1..+3 (if custom)   threshold, window, duration
+const pwModeIdx = 1 + tweaksCount
+
+func (t Tweaks) hasPasswordDays() bool {
+	return profile.PasswordExpirationMode(t.passwordExpirationMode.Value()) == profile.PasswordExpirationCustom
+}
+
+func (t Tweaks) hasLockoutCustomFields() bool {
+	return profile.AccountLockoutMode(t.accountLockoutMode.Value()) == profile.AccountLockoutCustom
+}
+
+func (t Tweaks) lockoutModeIdx() int {
+	idx := pwModeIdx + 1
+	if t.hasPasswordDays() {
+		idx++
+	}
+	return idx
+}
+
+func (t Tweaks) fieldCount() int {
+	n := t.lockoutModeIdx() + 1
+	if t.hasLockoutCustomFields() {
+		n += 3
+	}
+	return n
+}
 
 func (t *Tweaks) sync() {
 	t.profile.ExpressSettings.Mode = profile.ExpressSettingsMode(t.expressMode.Value())
@@ -122,25 +206,50 @@ func (t *Tweaks) sync() {
 		values[i] = c.Checked
 	}
 	t.profile.SystemTweaks = valuesToTweaks(values)
+
+	t.profile.PasswordExpiration = profile.PasswordExpirationSettings{
+		Mode: profile.PasswordExpirationMode(t.passwordExpirationMode.Value()),
+	}
+	if t.hasPasswordDays() {
+		if days, err := strconv.Atoi(t.passwordExpirationDays.Value()); err == nil {
+			t.profile.PasswordExpiration.Days = &days
+		}
+	}
+
+	t.profile.AccountLockout = profile.AccountLockoutSettings{
+		Mode: profile.AccountLockoutMode(t.accountLockoutMode.Value()),
+	}
+	if t.hasLockoutCustomFields() {
+		if v, err := strconv.Atoi(t.accountLockoutThreshold.Value()); err == nil {
+			t.profile.AccountLockout.Threshold = &v
+		}
+		if v, err := strconv.Atoi(t.accountLockoutWindow.Value()); err == nil {
+			t.profile.AccountLockout.WindowMinutes = &v
+		}
+		if v, err := strconv.Atoi(t.accountLockoutDuration.Value()); err == nil {
+			t.profile.AccountLockout.DurationMinutes = &v
+		}
+	}
 }
 
-// Update handles focus cycling, checkbox toggling and screen navigation.
+// Update handles focus cycling, checkbox toggling, select/text input and
+// screen navigation.
 func (t Tweaks) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "tab":
-			t.focus = (t.focus + 1) % tweaksFieldCount
+			t.focus = (t.focus + 1) % t.fieldCount()
 			return t, nil
 		case "shift+tab":
-			t.focus = (t.focus - 1 + tweaksFieldCount) % tweaksFieldCount
+			t.focus = (t.focus - 1 + t.fieldCount()) % t.fieldCount()
 			return t, nil
-		case " ", "enter":
-			if t.focus >= 1 {
+		case " ":
+			if t.focus >= 1 && t.focus <= tweaksCount {
 				idx := t.focus - 1
 				t.checks[idx].Checked = !t.checks[idx].Checked
+				t.sync()
+				return t, nil
 			}
-			t.sync()
-			return t, nil
 		case "ctrl+n":
 			t.sync()
 			return t, Navigate(ScreenWifi)
@@ -153,20 +262,45 @@ func (t Tweaks) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	lockoutModeIdx := t.lockoutModeIdx()
 	var cmd tea.Cmd
-	if t.focus == 0 {
+	switch {
+	case t.focus == 0:
 		t.expressMode, cmd = t.expressMode.Update(msg)
+	case t.focus == pwModeIdx:
+		t.passwordExpirationMode, cmd = t.passwordExpirationMode.Update(msg)
+	case t.hasPasswordDays() && t.focus == pwModeIdx+1:
+		t.passwordExpirationDays, cmd = t.passwordExpirationDays.Update(msg)
+	case t.focus == lockoutModeIdx:
+		t.accountLockoutMode, cmd = t.accountLockoutMode.Update(msg)
+	case t.hasLockoutCustomFields() && t.focus == lockoutModeIdx+1:
+		t.accountLockoutThreshold, cmd = t.accountLockoutThreshold.Update(msg)
+	case t.hasLockoutCustomFields() && t.focus == lockoutModeIdx+2:
+		t.accountLockoutWindow, cmd = t.accountLockoutWindow.Update(msg)
+	case t.hasLockoutCustomFields() && t.focus == lockoutModeIdx+3:
+		t.accountLockoutDuration, cmd = t.accountLockoutDuration.Update(msg)
 	}
 	t.sync()
 	return t, cmd
 }
 
-// View renders the express settings selector and every tweak checkbox.
+// View renders the express settings selector, every tweak checkbox and the
+// password/lockout policy fields.
 func (t Tweaks) View() string {
 	out := t.expressMode.View() + "\n\n"
 	for i, c := range t.checks {
 		out += c.View(t.focus == i+1) + "\n"
 	}
-	out += "\n" + t.bar.View()
+	out += "\n" + t.passwordExpirationMode.View()
+	if t.hasPasswordDays() {
+		out += "\n" + t.passwordExpirationDays.View()
+	}
+	out += "\n\n" + t.accountLockoutMode.View()
+	if t.hasLockoutCustomFields() {
+		out += "\n" + t.accountLockoutThreshold.View()
+		out += "\n" + t.accountLockoutWindow.View()
+		out += "\n" + t.accountLockoutDuration.View()
+	}
+	out += "\n\n" + t.bar.View()
 	return out
 }
