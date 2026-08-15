@@ -28,6 +28,12 @@ var accountLockoutOptions = []widgets.SelectOption{
 	{Value: string(profile.AccountLockoutCustom), Label: "Custom"},
 }
 
+var hiddenFilesOptions = []widgets.SelectOption{
+	{Value: string(profile.HiddenFilesDefault), Label: "File Explorer default (don't show hidden files)"},
+	{Value: string(profile.HiddenFilesShowHidden), Label: "Show hidden files"},
+	{Value: string(profile.HiddenFilesShowAll), Label: "Show hidden and protected OS files"},
+}
+
 // tweakLabels is the fixed display order for the SystemTweaks checkboxes.
 // tweaksToValues/valuesToTweaks below must list the fields in this same
 // order.
@@ -67,6 +73,13 @@ type Tweaks struct {
 	accountLockoutWindow    widgets.LabeledInput
 	accountLockoutDuration  widgets.LabeledInput
 
+	fileExplorerHiddenFiles  widgets.LabeledSelect
+	fileExplorerShowExt      widgets.Checkbox
+	fileExplorerClassicMenu  widgets.Checkbox
+	fileExplorerHideTooltips widgets.Checkbox
+	fileExplorerOpenThisPC   widgets.Checkbox
+	fileExplorerShowEndTask  widgets.Checkbox
+
 	focus int
 	bar   widgets.ConfirmBar
 }
@@ -74,15 +87,21 @@ type Tweaks struct {
 // NewTweaks builds the tweaks screen backed by profile.
 func NewTweaks(p *profile.Profile) Tweaks {
 	t := Tweaks{
-		profile:                 p,
-		expressMode:             widgets.NewLabeledSelect("Express settings", expressModeOptions),
-		passwordExpirationMode:  widgets.NewLabeledSelect("Password expiration", passwordExpirationOptions),
-		passwordExpirationDays:  widgets.NewLabeledInput("Days", "90"),
-		accountLockoutMode:      widgets.NewLabeledSelect("Account lockout policy", accountLockoutOptions),
-		accountLockoutThreshold: widgets.NewLabeledInput("Failed attempts", "10"),
-		accountLockoutWindow:    widgets.NewLabeledInput("Window (minutes)", "10"),
-		accountLockoutDuration:  widgets.NewLabeledInput("Duration (minutes)", "10"),
-		bar:                     widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
+		profile:                  p,
+		expressMode:              widgets.NewLabeledSelect("Express settings", expressModeOptions),
+		passwordExpirationMode:   widgets.NewLabeledSelect("Password expiration", passwordExpirationOptions),
+		passwordExpirationDays:   widgets.NewLabeledInput("Days", "90"),
+		accountLockoutMode:       widgets.NewLabeledSelect("Account lockout policy", accountLockoutOptions),
+		accountLockoutThreshold:  widgets.NewLabeledInput("Failed attempts", "10"),
+		accountLockoutWindow:     widgets.NewLabeledInput("Window (minutes)", "10"),
+		accountLockoutDuration:   widgets.NewLabeledInput("Duration (minutes)", "10"),
+		fileExplorerHiddenFiles:  widgets.NewLabeledSelect("Hidden files", hiddenFilesOptions),
+		fileExplorerShowExt:      widgets.Checkbox{Label: "Always show file extensions"},
+		fileExplorerClassicMenu:  widgets.Checkbox{Label: "Classic right-click context menu (Windows 11)"},
+		fileExplorerHideTooltips: widgets.Checkbox{Label: "Hide folder/desktop item tooltips"},
+		fileExplorerOpenThisPC:   widgets.Checkbox{Label: "Open File Explorer to This PC (not Quick access)"},
+		fileExplorerShowEndTask:  widgets.Checkbox{Label: "Show End task in the taskbar right-click menu"},
+		bar:                      widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 	}
 	t.expressMode.SetValue(string(p.ExpressSettings.Mode))
 	values := tweaksToValues(p.SystemTweaks)
@@ -111,6 +130,16 @@ func NewTweaks(p *profile.Profile) Tweaks {
 	if p.AccountLockout.DurationMinutes != nil {
 		t.accountLockoutDuration.SetValue(strconv.Itoa(*p.AccountLockout.DurationMinutes))
 	}
+
+	t.fileExplorerHiddenFiles.SetValue(string(profile.HiddenFilesDefault))
+	if p.FileExplorer.HiddenFiles != "" {
+		t.fileExplorerHiddenFiles.SetValue(string(p.FileExplorer.HiddenFiles))
+	}
+	t.fileExplorerShowExt.Checked = p.FileExplorer.ShowFileExtensions
+	t.fileExplorerClassicMenu.Checked = p.FileExplorer.ClassicContextMenu
+	t.fileExplorerHideTooltips.Checked = p.FileExplorer.HideFolderTooltips
+	t.fileExplorerOpenThisPC.Checked = p.FileExplorer.OpenToThisPC
+	t.fileExplorerShowEndTask.Checked = p.FileExplorer.ShowEndTaskInTaskbar
 	return t
 }
 
@@ -191,12 +220,18 @@ func (t Tweaks) lockoutModeIdx() int {
 	return idx
 }
 
-func (t Tweaks) fieldCount() int {
-	n := t.lockoutModeIdx() + 1
+// fileExplorerBaseIdx is the index of the first File Explorer field
+// (the HiddenFiles select); the 5 checkboxes follow it at +1..+5.
+func (t Tweaks) fileExplorerBaseIdx() int {
+	idx := t.lockoutModeIdx() + 1
 	if t.hasLockoutCustomFields() {
-		n += 3
+		idx += 3
 	}
-	return n
+	return idx
+}
+
+func (t Tweaks) fieldCount() int {
+	return t.fileExplorerBaseIdx() + 6
 }
 
 func (t *Tweaks) sync() {
@@ -230,6 +265,35 @@ func (t *Tweaks) sync() {
 			t.profile.AccountLockout.DurationMinutes = &v
 		}
 	}
+
+	t.profile.FileExplorer = profile.FileExplorerSettings{
+		HiddenFiles:          profile.HiddenFilesMode(t.fileExplorerHiddenFiles.Value()),
+		ShowFileExtensions:   t.fileExplorerShowExt.Checked,
+		ClassicContextMenu:   t.fileExplorerClassicMenu.Checked,
+		HideFolderTooltips:   t.fileExplorerHideTooltips.Checked,
+		OpenToThisPC:         t.fileExplorerOpenThisPC.Checked,
+		ShowEndTaskInTaskbar: t.fileExplorerShowEndTask.Checked,
+	}
+}
+
+// fileExplorerCheckboxAt returns a pointer to the File Explorer checkbox at
+// overall focus index i, or nil if i isn't one of them.
+func (t *Tweaks) fileExplorerCheckboxAt(i int) *widgets.Checkbox {
+	base := t.fileExplorerBaseIdx()
+	switch i {
+	case base + 1:
+		return &t.fileExplorerShowExt
+	case base + 2:
+		return &t.fileExplorerClassicMenu
+	case base + 3:
+		return &t.fileExplorerHideTooltips
+	case base + 4:
+		return &t.fileExplorerOpenThisPC
+	case base + 5:
+		return &t.fileExplorerShowEndTask
+	default:
+		return nil
+	}
 }
 
 // Update handles focus cycling, checkbox toggling, select/text input and
@@ -247,6 +311,11 @@ func (t Tweaks) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if t.focus >= 1 && t.focus <= tweaksCount {
 				idx := t.focus - 1
 				t.checks[idx].Checked = !t.checks[idx].Checked
+				t.sync()
+				return t, nil
+			}
+			if box := t.fileExplorerCheckboxAt(t.focus); box != nil {
+				box.Checked = !box.Checked
 				t.sync()
 				return t, nil
 			}
@@ -279,6 +348,8 @@ func (t Tweaks) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.accountLockoutWindow, cmd = t.accountLockoutWindow.Update(msg)
 	case t.hasLockoutCustomFields() && t.focus == lockoutModeIdx+3:
 		t.accountLockoutDuration, cmd = t.accountLockoutDuration.Update(msg)
+	case t.focus == t.fileExplorerBaseIdx():
+		t.fileExplorerHiddenFiles, cmd = t.fileExplorerHiddenFiles.Update(msg)
 	}
 	t.sync()
 	return t, cmd
@@ -301,6 +372,13 @@ func (t Tweaks) View() string {
 		out += "\n" + t.accountLockoutWindow.View()
 		out += "\n" + t.accountLockoutDuration.View()
 	}
+	base := t.fileExplorerBaseIdx()
+	out += "\n\n" + t.fileExplorerHiddenFiles.View()
+	out += "\n" + t.fileExplorerShowExt.View(t.focus == base+1)
+	out += "\n" + t.fileExplorerClassicMenu.View(t.focus == base+2)
+	out += "\n" + t.fileExplorerHideTooltips.View(t.focus == base+3)
+	out += "\n" + t.fileExplorerOpenThisPC.View(t.focus == base+4)
+	out += "\n" + t.fileExplorerShowEndTask.View(t.focus == base+5)
 	out += "\n\n" + t.bar.View()
 	return out
 }
