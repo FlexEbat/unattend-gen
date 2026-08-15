@@ -30,6 +30,9 @@ no matter how it was filled in.
   accounts exist), DefaultUser (every account, including future ones),
   FirstLogon (once) and UserOnce (once per account)
 - Password expiration and account lockout policy
+- File Explorer tweaks (show hidden/system files, file extensions, classic
+  right-click menu, tooltips, default folder, End task in taskbar) — applied
+  to every account, including future ones
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
