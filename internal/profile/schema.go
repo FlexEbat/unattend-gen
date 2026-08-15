@@ -249,6 +249,28 @@ type AccountLockoutSettings struct {
 	DurationMinutes *int               `json:"duration_minutes"` // required when Mode == custom
 }
 
+// HiddenFilesMode controls which hidden/system files File Explorer shows.
+type HiddenFilesMode string
+
+const (
+	HiddenFilesDefault    HiddenFilesMode = "default"     // File Explorer default: don't show hidden files
+	HiddenFilesShowHidden HiddenFilesMode = "show_hidden" // show hidden files, keep protected OS files hidden
+	HiddenFilesShowAll    HiddenFilesMode = "show_all"    // show hidden files and protected OS files
+)
+
+// FileExplorerSettings are applied to C:\Users\Default\NTUSER.DAT (the
+// account template), the same mechanism as DefaultUserScripts, so they
+// affect every account including ones created after setup. The zero value
+// changes nothing.
+type FileExplorerSettings struct {
+	HiddenFiles          HiddenFilesMode `json:"hidden_files" validate:"omitempty,oneof=default show_hidden show_all"`
+	ShowFileExtensions   bool            `json:"show_file_extensions"`
+	ClassicContextMenu   bool            `json:"classic_context_menu"` // Windows 11 only; no-op on Windows 10
+	HideFolderTooltips   bool            `json:"hide_folder_tooltips"`
+	OpenToThisPC         bool            `json:"open_to_this_pc"` // vs. Quick access, the default
+	ShowEndTaskInTaskbar bool            `json:"show_end_task_in_taskbar"`
+}
+
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
 	SchemaVersion                  int                        `json:"schema_version" validate:"required,eq=1"`
@@ -267,6 +289,7 @@ type Profile struct {
 	RemoveFeatures                 []RemovableFeature         `json:"remove_features"`
 	PasswordExpiration             PasswordExpirationSettings `json:"password_expiration"`
 	AccountLockout                 AccountLockoutSettings     `json:"account_lockout"`
+	FileExplorer                   FileExplorerSettings       `json:"file_explorer"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`
