@@ -19,6 +19,7 @@ var (
 	productKeyRe         = regexp.MustCompile(`^[A-Za-z0-9]{5}(-[A-Za-z0-9]{5}){4}$`)
 	computerNameRe       = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,13}[A-Za-z0-9])?$`)
 	allDigitsRe          = regexp.MustCompile(`^[0-9]+$`)
+	hexColorRe           = regexp.MustCompile(`^[0-9A-Fa-f]{6}$`)
 	accountNameForbidden = `"/\[]:;|=,+*?<>`
 )
 
@@ -54,6 +55,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateRemoveApps(p.RemoveApps)...)
 	errs = append(errs, validateDefaultUserScripts(p.DefaultUserScripts)...)
 	errs = append(errs, validateRemoveFeatures(p.RemoveFeatures)...)
+	errs = append(errs, validatePersonalization(p.Personalization)...)
 	errs = append(errs, validatePasswordExpiration(p.PasswordExpiration)...)
 	errs = append(errs, validateAccountLockout(p.AccountLockout)...)
 
@@ -258,4 +260,14 @@ func validateAccountLockout(s AccountLockoutSettings) []string {
 		errs = append(errs, "Для custom-политики блокировки нужно указать duration_minutes >= 1")
 	}
 	return errs
+}
+
+func validatePersonalization(s PersonalizationSettings) []string {
+	if s.AccentColor == nil {
+		return nil
+	}
+	if !hexColorRe.MatchString(*s.AccentColor) {
+		return []string{"accent_color должен быть 6 hex-цифрами, например FF8800"}
+	}
+	return nil
 }
