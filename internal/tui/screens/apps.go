@@ -98,7 +98,7 @@ func (a Apps) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case "ctrl+n":
 			a.sync()
-			return a, Navigate(ScreenScripts)
+			return a, Navigate(ScreenPersonalization)
 		case "esc":
 			a.sync()
 			return a, Navigate(ScreenWifi)

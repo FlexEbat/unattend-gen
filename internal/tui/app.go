@@ -32,14 +32,15 @@ func NewModel(initial *profile.Profile) Model {
 		profile: initial,
 		current: screens.ScreenWelcome,
 		screens: map[screens.ID]tea.Model{
-			screens.ScreenWelcome:  screens.NewWelcome(initial),
-			screens.ScreenLanguage: screens.NewLanguage(initial),
-			screens.ScreenAccounts: screens.NewAccounts(initial),
-			screens.ScreenTweaks:   screens.NewTweaks(initial),
-			screens.ScreenWifi:     screens.NewWifi(initial),
-			screens.ScreenApps:     screens.NewApps(initial),
-			screens.ScreenScripts:  screens.NewScripts(initial),
-			screens.ScreenReview:   screens.NewReview(initial),
+			screens.ScreenWelcome:         screens.NewWelcome(initial),
+			screens.ScreenLanguage:        screens.NewLanguage(initial),
+			screens.ScreenAccounts:        screens.NewAccounts(initial),
+			screens.ScreenTweaks:          screens.NewTweaks(initial),
+			screens.ScreenWifi:            screens.NewWifi(initial),
+			screens.ScreenApps:            screens.NewApps(initial),
+			screens.ScreenPersonalization: screens.NewPersonalization(initial),
+			screens.ScreenScripts:         screens.NewScripts(initial),
+			screens.ScreenReview:          screens.NewReview(initial),
 		},
 	}
 }
@@ -97,6 +98,8 @@ func rebuildScreen(id screens.ID, p *profile.Profile) tea.Model {
 		return screens.NewWifi(p)
 	case screens.ScreenApps:
 		return screens.NewApps(p)
+	case screens.ScreenPersonalization:
+		return screens.NewPersonalization(p)
 	case screens.ScreenScripts:
 		return screens.NewScripts(p)
 	default:

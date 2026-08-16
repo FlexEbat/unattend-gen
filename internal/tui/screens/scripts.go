@@ -163,7 +163,7 @@ func (s Scripts) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, Navigate(ScreenReview)
 		case "esc":
 			s.sync()
-			return s, Navigate(ScreenApps)
+			return s, Navigate(ScreenPersonalization)
 		case "ctrl+r":
 			s.sync()
 			return s, Navigate(ScreenReview)
