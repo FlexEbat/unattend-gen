@@ -1,5 +1,5 @@
 // Package screens holds the individual TUI screens (welcome, language,
-// accounts, tweaks, wifi, apps, scripts, review). Each screen is a bubbletea.Model that
+// accounts, tweaks, wifi, apps, personalization, scripts, review). Each screen is a bubbletea.Model that
 // reads and writes the shared *profile.Profile passed in at construction, so
 // switching screens never loses already-entered data.
 package screens
@@ -22,6 +22,7 @@ const (
 	ScreenTweaks
 	ScreenWifi
 	ScreenApps
+	ScreenPersonalization
 	ScreenScripts
 	ScreenReview
 )
