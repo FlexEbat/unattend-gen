@@ -271,6 +271,29 @@ type FileExplorerSettings struct {
 	ShowEndTaskInTaskbar bool            `json:"show_end_task_in_taskbar"`
 }
 
+// ColorTheme is a Windows light/dark theme choice.
+type ColorTheme string
+
+const (
+	ColorThemeLight ColorTheme = "light"
+	ColorThemeDark  ColorTheme = "dark"
+)
+
+// PersonalizationSettings covers the "Colors" part of the site's
+// Personalization section (not wallpaper/lock screen, which need actual
+// image bytes and a different mechanism — a later slice). Applied to
+// C:\Users\Default\NTUSER.DAT, same as FileExplorerSettings, so every
+// account gets them. The zero value changes nothing: DisableTransparency
+// is false by default because Windows' own default is transparency *on*.
+type PersonalizationSettings struct {
+	SystemTheme              ColorTheme `json:"system_theme" validate:"omitempty,oneof=light dark"`
+	AppsTheme                ColorTheme `json:"apps_theme" validate:"omitempty,oneof=light dark"`
+	AccentColor              *string    `json:"accent_color"` // 6 hex digits, RRGGBB; nil = Windows default
+	ShowAccentOnStartTaskbar bool       `json:"show_accent_on_start_taskbar"`
+	ShowAccentOnTitleBars    bool       `json:"show_accent_on_title_bars"`
+	DisableTransparency      bool       `json:"disable_transparency"`
+}
+
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
 	SchemaVersion                  int                        `json:"schema_version" validate:"required,eq=1"`
@@ -290,6 +313,7 @@ type Profile struct {
 	PasswordExpiration             PasswordExpirationSettings `json:"password_expiration"`
 	AccountLockout                 AccountLockoutSettings     `json:"account_lockout"`
 	FileExplorer                   FileExplorerSettings       `json:"file_explorer"`
+	Personalization                PersonalizationSettings    `json:"personalization"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`
