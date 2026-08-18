@@ -27,11 +27,13 @@ type Personalization struct {
 	showAccentOnTitleBars    widgets.Checkbox
 	disableTransparency      widgets.Checkbox
 
+	solidColorWallpaper widgets.LabeledInput
+
 	focus int
 	bar   widgets.ConfirmBar
 }
 
-const personalizationFieldCount = 6
+const personalizationFieldCount = 7
 
 // NewPersonalization builds the personalization screen backed by profile.
 func NewPersonalization(p *profile.Profile) Personalization {
@@ -43,6 +45,7 @@ func NewPersonalization(p *profile.Profile) Personalization {
 		showAccentOnStartTaskbar: widgets.Checkbox{Label: "Show accent color on Start and taskbar"},
 		showAccentOnTitleBars:    widgets.Checkbox{Label: "Show accent color on title bars"},
 		disableTransparency:      widgets.Checkbox{Label: "Disable transparency effects"},
+		solidColorWallpaper:      widgets.NewLabeledInput("Solid color wallpaper (hex RRGGBB, optional)", "0078D4"),
 		bar:                      widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 	}
 	s.systemTheme.SetValue(string(p.Personalization.SystemTheme))
@@ -53,6 +56,9 @@ func NewPersonalization(p *profile.Profile) Personalization {
 	s.showAccentOnStartTaskbar.Checked = p.Personalization.ShowAccentOnStartTaskbar
 	s.showAccentOnTitleBars.Checked = p.Personalization.ShowAccentOnTitleBars
 	s.disableTransparency.Checked = p.Personalization.DisableTransparency
+	if p.Personalization.SolidColorWallpaper != nil {
+		s.solidColorWallpaper.SetValue(*p.Personalization.SolidColorWallpaper)
+	}
 	return s
 }
 
@@ -71,6 +77,9 @@ func (s *Personalization) sync() {
 	}
 	if v := s.accentColor.Value(); v != "" {
 		s.profile.Personalization.AccentColor = &v
+	}
+	if v := s.solidColorWallpaper.Value(); v != "" {
+		s.profile.Personalization.SolidColorWallpaper = &v
 	}
 }
 
@@ -118,6 +127,8 @@ func (s Personalization) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.appsTheme, cmd = s.appsTheme.Update(msg)
 	case 2:
 		s.accentColor, cmd = s.accentColor.Update(msg)
+	case 6:
+		s.solidColorWallpaper, cmd = s.solidColorWallpaper.Update(msg)
 	}
 	s.sync()
 	return s, cmd
@@ -129,6 +140,7 @@ func (s Personalization) View() string {
 	out += "\n\n" + s.showAccentOnStartTaskbar.View(s.focus == 3)
 	out += "\n" + s.showAccentOnTitleBars.View(s.focus == 4)
 	out += "\n" + s.disableTransparency.View(s.focus == 5)
+	out += "\n\n" + s.solidColorWallpaper.View()
 	out += "\n\n" + s.bar.View()
 	return out
 }
