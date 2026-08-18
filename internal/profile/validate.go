@@ -263,11 +263,12 @@ func validateAccountLockout(s AccountLockoutSettings) []string {
 }
 
 func validatePersonalization(s PersonalizationSettings) []string {
-	if s.AccentColor == nil {
-		return nil
+	var errs []string
+	if s.AccentColor != nil && !hexColorRe.MatchString(*s.AccentColor) {
+		errs = append(errs, "accent_color должен быть 6 hex-цифрами, например FF8800")
 	}
-	if !hexColorRe.MatchString(*s.AccentColor) {
-		return []string{"accent_color должен быть 6 hex-цифрами, например FF8800"}
+	if s.SolidColorWallpaper != nil && !hexColorRe.MatchString(*s.SolidColorWallpaper) {
+		errs = append(errs, "solid_color_wallpaper должен быть 6 hex-цифрами, например 0078D4")
 	}
-	return nil
+	return errs
 }
