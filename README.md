@@ -33,8 +33,8 @@ no matter how it was filled in.
 - File Explorer tweaks (show hidden/system files, file extensions, classic
   right-click menu, tooltips, default folder, End task in taskbar) — applied
   to every account, including future ones
-- Personalization colors (light/dark theme, accent color, transparency) —
-  same every-account mechanism
+- Personalization colors (light/dark theme, accent color, transparency,
+  solid-color wallpaper) — same every-account mechanism
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
