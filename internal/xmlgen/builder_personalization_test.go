@@ -93,3 +93,41 @@ func TestValidateProfileAcceptsValidAccentColor(t *testing.T) {
 		t.Fatalf("expected a valid accent_color to validate, got errors: %v", result.Errors)
 	}
 }
+
+func TestBuildAnswerFileSolidColorWallpaper(t *testing.T) {
+	p := baseProfile()
+	color := "0078D4"
+	p.Personalization = profile.PersonalizationSettings{SolidColorWallpaper: &color}
+
+	doc := buildAndParseAccounts(t, p)
+	deployment := findShellComponentByName(doc, "specialize", "Microsoft-Windows-Deployment")
+	if deployment == nil || len(deployment.RunSynchronousCommand) != 1 {
+		t.Fatalf("expected exactly 1 Deployment command, got %+v", deployment)
+	}
+	cmd := deployment.RunSynchronousCommand[0].Path
+	// 0078D4 -> R=00 G=78(120) B=D4(212)
+	if !strings.Contains(cmd, `Background /t REG_SZ /d \"0 120 212\"`) {
+		t.Fatalf("command = %q, want Background set to decimal 0 120 212", cmd)
+	}
+	if !strings.Contains(cmd, `Wallpaper /t REG_SZ /d \"\"`) {
+		t.Fatalf("command = %q, want the image Wallpaper value cleared", cmd)
+	}
+}
+
+func TestValidateProfileRejectsMalformedSolidColorWallpaper(t *testing.T) {
+	data := []byte(`{
+		"schema_version": 1,
+		"name": "demo",
+		"language": {"ui_language": "en-US", "locale": "en-US", "keyboard_layout": "en-US"},
+		"edition": {"mode": "interactive"},
+		"accounts": [],
+		"first_logon": {"mode": "none"},
+		"express_settings": {"mode": "interactive"},
+		"personalization": {"solid_color_wallpaper": "nope"}
+	}`)
+
+	result := profile.ValidateProfile(data)
+	if len(result.Errors) == 0 {
+		t.Fatal("expected an error for a malformed solid_color_wallpaper")
+	}
+}
