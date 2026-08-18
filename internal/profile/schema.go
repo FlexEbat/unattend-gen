@@ -292,6 +292,14 @@ type PersonalizationSettings struct {
 	ShowAccentOnStartTaskbar bool       `json:"show_accent_on_start_taskbar"`
 	ShowAccentOnTitleBars    bool       `json:"show_accent_on_title_bars"`
 	DisableTransparency      bool       `json:"disable_transparency"`
+	// SolidColorWallpaper replaces the desktop background image with a
+	// plain color (6 hex digits, RRGGBB). nil = Windows default wallpaper.
+	// An actual image file and the lock screen image aren't covered yet:
+	// an image needs an embedding mechanism this slice doesn't add, and the
+	// lock screen registry path (PersonalizationCSP) is Enterprise/
+	// Education-only per Microsoft's own docs — unreliable for most users
+	// of this tool.
+	SolidColorWallpaper *string `json:"solid_color_wallpaper"`
 }
 
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
