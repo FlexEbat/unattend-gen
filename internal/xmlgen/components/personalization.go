@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 )
@@ -9,6 +10,8 @@ import (
 const (
 	personalizeKey = defaultUserHiveKey + `\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`
 	dwmKey         = defaultUserHiveKey + `\Software\Microsoft\Windows\DWM`
+	colorsKey      = defaultUserHiveKey + `\Control Panel\Colors`
+	desktopKey     = defaultUserHiveKey + `\Control Panel\Desktop`
 )
 
 // PersonalizationCommand returns one command that mounts the default user
@@ -42,6 +45,14 @@ func PersonalizationCommand(s profile.PersonalizationSettings) string {
 			fmt.Sprintf(`reg.exe add "%s" /v ColorizationColor /t REG_DWORD /d 0x%s /f`, dwmKey, packed),
 		)
 	}
+	if s.SolidColorWallpaper != nil {
+		ops = append(ops,
+			fmt.Sprintf(`reg.exe add "%s" /v Background /t REG_SZ /d "%s" /f`, colorsKey, hexColorToDecimalRGB(*s.SolidColorWallpaper)),
+			fmt.Sprintf(`reg.exe add "%s" /v Wallpaper /t REG_SZ /d "" /f`, desktopKey),
+			fmt.Sprintf(`reg.exe add "%s" /v WallpaperStyle /t REG_SZ /d 0 /f`, desktopKey),
+			fmt.Sprintf(`reg.exe add "%s" /v TileWallpaper /t REG_SZ /d 0 /f`, desktopKey),
+		)
+	}
 
 	if len(ops) == 0 {
 		return ""
@@ -64,4 +75,15 @@ func lightThemeValue(t profile.ColorTheme) int {
 func accentColorToPackedABGR(rrggbb string) string {
 	r, g, b := rrggbb[0:2], rrggbb[2:4], rrggbb[4:6]
 	return "FF" + b + g + r
+}
+
+// hexColorToDecimalRGB converts a "RRGGBB" hex string to the space-separated
+// decimal "R G B" format the classic Control Panel\Colors\Background value
+// expects.
+func hexColorToDecimalRGB(rrggbb string) string {
+	var r, g, b int64
+	r, _ = strconv.ParseInt(rrggbb[0:2], 16, 0)
+	g, _ = strconv.ParseInt(rrggbb[2:4], 16, 0)
+	b, _ = strconv.ParseInt(rrggbb[4:6], 16, 0)
+	return fmt.Sprintf("%d %d %d", r, g, b)
 }
