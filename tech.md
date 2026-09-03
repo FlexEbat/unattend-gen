@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v16** (2026-09-02)
+**Версия: v17** (2026-09-03)
 
 Changelog:
+- v17 — раздел 15 (бэклог) переписан по итогам полной постраничной сверки с schneegans.de (commit `88d81f0`): раскрыт по группам A–F с приоритетом, найдено ~30 новых незадокументированных гэпов (расширенный Windows PE stage, Activation, Processor architectures, Start menu/taskbar целиком, Lock key settings, Sticky keys, Folders on Start, VM host core isolation, ~18 недостающих приложений в Remove bloatware, ещё 6 System tweaks). Уточнено: Windows Fax and Scan больше не в списке сайта, убран из бэклога.
 - v16 — восстановлен после удаления из репозитория. Актуализирован по фактическому коду: слайсы 0–15 сделаны (последний — v0.15.0, solid-цвет обоев). Заморожены: `Profile` (внутри — `SystemTweaks`, `WifiSettings`, `RemovableApp`/`RemovableFeature`, `CustomScript`, `PasswordExpirationSettings`, `AccountLockoutSettings`, `FileExplorerSettings`, `PersonalizationSettings`), API `profile.ValidateProfile`/`xmlgen.BuildAnswerFile`, структура папок, слои `cli → tui/xmlgen ← profile`.
 - v1 — первая версия контракта (слайсы 0–6: каркас, язык/издание, компьютер/аккаунты, CLI end-to-end, express settings + tweaks, TUI + пресеты, Wi-Fi).
 
@@ -394,20 +395,66 @@ CONTRACT GAP
 - **14**: персонализация цветов (тема, акцент, прозрачность) — получила отдельный новый экран Personalization.
 - **15**: сплошной цвет обоев рабочего стола — добавлено в существующий `PersonalizationSettings`/экран Personalization, не новый тип.
 
-### Бэклог (не начато, без приоритета/очерёдности)
+### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
-Эти пункты — кандидаты на будущие слайсы. Пока нет отдельного слайса под конкретный пункт, поле/API для него не существует — это `CONTRACT GAP`, если кто-то попробует его использовать.
+Источник: [schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/), commit `88d81f0`. Сверка сделана постранично, раздел за разделом сайта, против фактического кода (не только против старого текста этого файла — там нашлись расхождения, см. ниже).
 
-- **Обои файлом-картинкой.** Нужен новый механизм встраивания файла (base64), сам подход понятен (аналогичен скриптам), не реализован.
-- **Экран блокировки картинкой.** Реальный механизм — `PersonalizationCSP`, подтверждённо Enterprise/Education/Pro-SharedPC-only по документации Microsoft — низкая надёжность для основной аудитории инструмента (в основном Home/Pro). Решить, стоит ли реализовывать, до начала работы.
-- **Мультиязычность.** Второй/третий язык интерфейса и раскладка, GeoID домашнего региона.
-- **Закрепление на Start/панели задач.**
-- **Визуальные эффекты, значки рабочего стола.**
-- **Гостевые дополнения ВМ** (VirtualBox/VMware/VirtIO/Parallels guest tools).
-- **Политика AppLocker.**
-- **Сырой XML passthrough** как аварийный люк для нестандартных случаев.
-- **HardenACLs, MakeEdgeUninstallable** — оба сознательно пропущены в слайсе 8 как более сложные/рискованные (`MakeEdgeUninstallable` правит JSON-файл, не реестр — другой механизм).
-- **Legacy optional features** (PowerShell 2.0, Windows Fax and Scan) — третий механизм удаления (`Disable-WindowsOptionalFeature`), сознательно пропущен в слайсе 11.
-- **Разметка диска** — НЕ бэклог, явно исключено из скоупа (раздел 1), сюда не возвращаемся.
+Каждый пункт при взятии в работу — отдельный слайс: сначала проверка реального механизма (раздел 12), затем реализация, затем поднятие версии этого файла с добавлением контракта в раздел 4/9 и пометкой пункта здесь как сделанного (переносится в раздел «Сделано» выше).
 
-Каждый пункт бэклога при взятии в работу оформляется как отдельный слайс: сначала проверка реального механизма (раздел 12), затем реализация, затем — поднятие версии этого файла с добавлением контракта в раздел 4/9.
+Группы упорядочены по приоритету (первая — предлагаемая следующая, но порядок не жёсткий, решает владелец).
+
+**Группа A — расширение Remove bloatware (низкий риск, тот же механизм, что уже есть).**
+Список сайта — 58 приложений, в проекте `RemovableApps` — 31 (Appx) + `RemovableFeatures` — 7 (DISM capability). Раньше в комментариях кода было написано, что пропущено «только то, что требует Remove-WindowsCapability» — это неточно, реально не хватает ещё ~18 позиций, никак не связанных с DISM-механизмом:
+Bing Search, Dev Home, Facial recognition (Windows Hello), Game Assist, Math Input Panel, Media Features (отдельная от Windows Media Player позиция), **Microsoft Store**, Notepad (modern), **OneDrive**, OneSync, **Outlook for Windows**, **Paint** (не Paint3D — Paint отдельно), **Recall**, Remote Desktop Client, Steps Recorder, Wallet, Windows Media Player (modern), **Windows Terminal**.
+Жирным — самые вероятные частые запросы аудитории (OneDrive, Microsoft Store, Recall, Windows Terminal, Paint). Каждое имя перед добавлением в `apps.go` проверяется отдельно — какая у него реальная `DisplayName` подстрока в `Get-AppxProvisionedPackage`, по аналогии с уже существующими 31, не по памяти.
+
+**Группа B — доработка System tweaks (тот же компонент Deployment/specialize, что уже есть).**
+Из полного списка сайта (26 пунктов) не хватает:
+- `Delete hidden junction points` — не был замечен при прошлом аудите, отдельный пункт.
+- `Prevent Windows Update from rebooting` (трюк с перемещением active hours через задачу планировщика) — не замечен раньше, механизм отличается от существующего `DisableWindowsUpdate` (тот ставит на паузу, этот не даёт перезагружать).
+- `Turn off system sounds`, `Disable app suggestions / Content Delivery Manager`, `Disable Enhanced Pointer Precision` — в слайсе 8 были пропущены как «нужен default-user-hive механизм, которого нет»; механизм появился в слайсах 13–14 (`fileexplorer.go`/`personalization.go`), так что это уже дешёвые доработки, не блокированные.
+- `Prevent download/install of apps associated with hardware devices` (LG-monitor-bloat policy) — не замечен раньше.
+- `Harden ACLs` — известный пункт, пропущен в слайсе 8 как более рискованный (снимает права записи для Authenticated Users на `C:\`).
+- `Make Edge uninstallable` — известный пункт, другой механизм (правка JSON-файла `IntegratedServicesRegionPolicySet.json`, не реестра).
+- `Delete empty C:\Windows.old` — известный пункт, сознательно не подходит (не применимо к чистой установке, только к апгрейду).
+
+**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI).**
+- **Lock key settings** — начальное состояние (Off/On) и поведение (Toggle/Ignore) для Caps Lock/Num Lock/Scroll Lock. Раздела нет вообще.
+- **Sticky keys settings** — включение по 5×Shift, звук, иконка в таскбаре и т.д. Раздела нет вообще.
+- **Start menu and taskbar** — самый крупный из отсутствующих разделов: режим отображения поля поиска в таскбаре, конфигурация закреплённых иконок таскбара через XML, отключение виджетов, left-align таскбара (Win11), скрытие кнопки Task View, «always show tray icons», отключение Bing-результатов в поиске, плитки Start (Win10) и pins (Win11) через XML/JSON.
+- **Visual effects** — полный набор чекбоксов производительности/анимации (уже был в старом бэклоге под общим названием «визуальные эффекты»).
+- **Desktop icons** — какие иконки рабочего стола показывать (Компьютер/Корзина/Сеть и т.д.) + удаление ярлыка Edge.
+- **Folders on Start** — папки рядом с кнопкой питания в Start (Win11). Не был в старом бэклоге, новый пункт.
+- **VM hosts: Core isolation toggle** — включить/выключить virtualization-based security. Отдельно от VM guest tools (ниже), не то же самое.
+- **VM guest tools** — установка VirtualBox Guest Additions / VMware Tools / VirtIO / Parallels Tools. Известный пункт.
+- **AppLocker policy** — известный пункт, готовый XML-шаблон с сайта можно взять за основу.
+
+**Группа D — Windows PE / установка образа (другой pass, другая часть жизненного цикла).**
+Не было в старом бэклоге вообще, обнаружено при этом аудите:
+- Использовать ключ активации, сохранённый в BIOS/UEFI прошивке (не вводить заново).
+- Свой `.cmd`-скрипт для полного PE-этапа (партиционирование + применение образа вручную) — конфликтует с явным исключением диск-партиционирования из скоупа (раздел 1), нужно решить отдельно, скорее всего не брать.
+- Отключение 8.3-имён файлов (`fsutil 8dot3name`).
+- Отключение Windows Defender на этапе PE (через загрузку куста SYSTEM и правку `Start`-значений сервисов).
+- Паузы перед разметкой диска / перед финальной перезагрузкой PE-этапа.
+- Compact-режим применения образа, пропуск `/CheckIntegrity /Verify`.
+- Выбор образа для установки по имени/индексу внутри .wim, а не только по edition.
+- Отдельное поле продукт-ключа только для **активации** (независимо от ключа установки).
+- Выбор нескольких **processor architectures** в одном XML (x86/x64/ARM64).
+- `Allow Windows 11 to be installed without internet connection` — отдельный чекбокс PE-этапа, НЕ совпадает по механизму с существующим `BypassOnlineAccountRequirement` (тот — про OOBE-экраны после установки, этот — про сам Windows Setup).
+- `$OEM$` distribution share / configuration set — копирование содержимого папки `$OEM$` на целевой диск.
+
+**Группа E — прочие setup-settings и мелкие механизмы.**
+- Глобальный переключатель «Hide PowerShell windows during setup» (`-WindowStyle Hidden` вместо `Normal` для всех PS-скриптов сразу, не только пользовательских).
+- «Keep sensitive files» — по умолчанию сайт удаляет `C:\Windows\Panther\unattend.xml` (и `-original.xml`) и `C:\Windows\Setup\Scripts\Wifi.xml` после установки; в проекте это поведение вообще не описано и не управляется ни в какую сторону.
+- Автозапуск Narrator во время установки и после логона.
+- Динамическое имя компьютера через PowerShell-скрипт (сейчас — только статичная строка или «пусть Windows сгенерирует»).
+- Base64-обфускация паролей аккаунтов в самом сгенерированном XML (не то же самое, что base64-обёртка контента скриптов, которая уже есть).
+- Импорт готового WLAN-профиля как raw XML (`netsh wlan export profile key=clear`) в дополнение к текущему ручному вводу SSID/пароль.
+
+**Группа F — большой архитектурный кусок, решить отдельно, стоит ли вообще брать.**
+- **Сырой XML passthrough** для ~80 «сырых» компонентов sysprep (Microsoft-Windows-Audio-AudioCore, TCPIP, TerminalServices-* и т.д., полный список — на странице сайта в разделе «XML markup for more components»). Самый крупный по объёму нереализованный кусок сайта — фактически аварийный люк на все компоненты Windows unattend, которые генератор явно не поддерживает. У сайта это одно текстовое поле на компонент + pass. Для CLI/TUI-инструмента формат ввода такого объёма XML через TUI неочевиден (скорее подходит только CLI/JSON-профилю, не экрану) — решить архитектуру до реализации.
+
+**Не в бэклоге (сознательно исключено или устарело):**
+- **Разметка диска** — явно исключено из скоупа (раздел 1), сюда не возвращаемся.
+- **Legacy optional features** (PowerShell 2.0) — третий механизм удаления (`Disable-WindowsOptionalFeature`), сознательно пропущен в слайсе 11.
+- ~~Windows Fax and Scan~~ — упоминался в старой версии этого файла как второй такой пункт, но в текущей версии сайта (commit `88d81f0`) в списке Remove Bloatware уже не значится — похоже, сайт его убрал; больше не бэклог.
