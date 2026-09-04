@@ -98,6 +98,12 @@ type SystemTweaks struct {
 	AuditProcessCreation       bool `json:"audit_process_creation"`
 	HideEdgeFirstRun           bool `json:"hide_edge_first_run"`
 	DisableEdgeStartupBoost    bool `json:"disable_edge_startup_boost"`
+	DeleteHiddenJunctions      bool `json:"delete_hidden_junctions"`
+	PreventAutomaticReboot     bool `json:"prevent_automatic_reboot"`
+	TurnOffSystemSounds        bool `json:"turn_off_system_sounds"`
+	DisableAppSuggestions      bool `json:"disable_app_suggestions"`
+	DisablePointerPrecision    bool `json:"disable_pointer_precision"`
+	PreventDeviceApps          bool `json:"prevent_device_apps"`
 }
 
 // WifiAuthentication is the authentication type of a pre-configured Wi-Fi profile.
