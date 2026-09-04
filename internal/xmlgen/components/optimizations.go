@@ -248,3 +248,56 @@ func DisablePointerPrecisionCommand() string {
 		fmt.Sprintf(`reg.exe unload %s`, defaultUserHiveKey),
 	})
 }
+
+// Slice 18 (tech.md backlog group B remainder): the 3 System tweaks left
+// out of slice 16 because each uses a distinct/riskier mechanism.
+// Mechanisms sourced from the reference implementation
+// (modifier/Optimizations.cs), not invented from memory.
+
+// hardenSystemDriveACLCommand removes the "Authenticated Users" group
+// (well-known SID S-1-5-11) from C:\'s ACL, so any locally-authenticated
+// user loses write access to the system drive root. Matches the reference
+// implementation's icacls.exe invocation exactly - no /t or /c flags, a
+// single non-recursive edit of the root ACL only.
+const hardenSystemDriveACLCommand = `cmd.exe /c icacls.exe C:\ /remove:g "*S-1-5-11"`
+
+// deleteWindowsOldCommand removes C:\Windows.old, the folder Windows
+// Setup leaves behind after an in-place upgrade (a fresh install never
+// creates it, so this is a harmless no-op there). Plain rmdir, no /s or
+// /q - matches the reference implementation exactly; it doesn't force a
+// non-empty-directory removal, so this may silently fail if Windows.old
+// still holds files, same as upstream.
+const deleteWindowsOldCommand = `cmd.exe /c "rmdir C:\Windows.old"`
+
+// makeEdgeUninstallableScript flips the "defaultState" of Edge's own
+// uninstall-policy entry in IntegratedServicesRegionPolicySet.json from
+// disabled to enabled, which is what actually lets "Uninstall" show up for
+// Edge in Windows' "Apps & features" list. Copied verbatim from the
+// reference implementation's resource/MakeEdgeUninstallable.ps1.
+const makeEdgeUninstallableScript = `try {
+	$params = @{
+		LiteralPath = 'C:\Windows\System32\IntegratedServicesRegionPolicySet.json';
+		Encoding = 'Utf8';
+	};
+	$o = Get-Content @params | ConvertFrom-Json;
+	$o.policies | ForEach-Object -Process {
+		if( $_.guid -eq '{1bca278a-5d11-4acf-ad2f-f9ab6d7f93a6}' ) {
+			$_.defaultState = 'enabled';
+		}
+	};
+	$o | ConvertTo-Json -Depth 9 | Out-File @params;
+} catch {
+	$_;
+}
+`
+
+// MakeEdgeUninstallableCommand returns one specialize-pass command that
+// writes and runs makeEdgeUninstallableScript.
+func MakeEdgeUninstallableCommand() string {
+	path := scriptsDir + `\unattend-make-edge-uninstallable.ps1`
+	return wrapCommand([]string{
+		ensureScriptsDirStatement(),
+		writeFileStatement(path, []byte(makeEdgeUninstallableScript)),
+		invokeCommand(profile.ScriptPs1, path),
+	})
+}

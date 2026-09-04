@@ -104,6 +104,10 @@ type SystemTweaks struct {
 	DisableAppSuggestions      bool `json:"disable_app_suggestions"`
 	DisablePointerPrecision    bool `json:"disable_pointer_precision"`
 	PreventDeviceApps          bool `json:"prevent_device_apps"`
+	// Slice 18 (tech.md backlog group B, remainder).
+	HardenSystemDriveACL  bool `json:"harden_system_drive_acl"`
+	MakeEdgeUninstallable bool `json:"make_edge_uninstallable"`
+	DeleteWindowsOld      bool `json:"delete_windows_old"`
 }
 
 // WifiAuthentication is the authentication type of a pre-configured Wi-Fi profile.
