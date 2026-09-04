@@ -55,9 +55,15 @@ var tweakLabels = [tweaksCount]string{
 	"Audit process creation (with command line)",
 	"Hide Edge first run experience",
 	"Disable Edge startup boost / background mode",
+	"Delete hidden junction points",
+	"Prevent Windows Update from rebooting your computer",
+	"Turn off system sounds",
+	"Disable app suggestions / Content Delivery Manager",
+	"Disable Enhance Pointer Precision",
+	"Prevent download/install of apps for hardware devices",
 }
 
-const tweaksCount = 17
+const tweaksCount = 23
 
 // Tweaks is the express settings / system tweaks / account policy screen.
 type Tweaks struct {
@@ -162,6 +168,12 @@ func tweaksToValues(tw profile.SystemTweaks) [tweaksCount]bool {
 		tw.AuditProcessCreation,
 		tw.HideEdgeFirstRun,
 		tw.DisableEdgeStartupBoost,
+		tw.DeleteHiddenJunctions,
+		tw.PreventAutomaticReboot,
+		tw.TurnOffSystemSounds,
+		tw.DisableAppSuggestions,
+		tw.DisablePointerPrecision,
+		tw.PreventDeviceApps,
 	}
 }
 
@@ -184,6 +196,12 @@ func valuesToTweaks(v [tweaksCount]bool) profile.SystemTweaks {
 		AuditProcessCreation:       v[14],
 		HideEdgeFirstRun:           v[15],
 		DisableEdgeStartupBoost:    v[16],
+		DeleteHiddenJunctions:      v[17],
+		PreventAutomaticReboot:     v[18],
+		TurnOffSystemSounds:        v[19],
+		DisableAppSuggestions:      v[20],
+		DisablePointerPrecision:    v[21],
+		PreventDeviceApps:          v[22],
 	}
 }
 
