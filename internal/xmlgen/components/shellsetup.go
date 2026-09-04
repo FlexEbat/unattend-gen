@@ -70,6 +70,15 @@ const (
 	disableEdgeStartupBoostCommand = `cmd.exe /c reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v StartupBoostEnabled /t REG_DWORD /d 0 /f && reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v BackgroundModeEnabled /t REG_DWORD /d 0 /f`
 )
 
+// Slice 16 additions (tech.md backlog group B) live in optimizations.go:
+// disableStartupSoundCommand, disableAppSuggestionsCommand,
+// preventDeviceAppsCommand are simple consts folded into enabledCommands
+// below; PreventAutomaticRebootCommand, TurnOffSystemSounds*Command,
+// DisableAppSuggestionsDefaultUserCommand, DisablePointerPrecisionCommand
+// and DeleteJunctions*Command are funcs (they build multi-statement
+// commands, some with their own default-user-hive mount/unmount cycle) and
+// are appended conditionally after the loop.
+
 // Deployment is the Microsoft-Windows-Deployment component, specialize pass:
 // the real home of RunSynchronousCommand outside windowsPE.
 type Deployment struct {
@@ -110,6 +119,9 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		{tweaks.AuditProcessCreation, auditProcessCreationCommand},
 		{tweaks.HideEdgeFirstRun, hideEdgeFirstRunCommand},
 		{tweaks.DisableEdgeStartupBoost, disableEdgeStartupBoostCommand},
+		{tweaks.TurnOffSystemSounds, disableStartupSoundCommand},
+		{tweaks.DisableAppSuggestions, disableAppSuggestionsCommand},
+		{tweaks.PreventDeviceApps, preventDeviceAppsCommand},
 	}
 
 	var commands []runSynchronousCommand
@@ -117,6 +129,22 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		if c.enabled {
 			commands = append(commands, newRunSynchronousCommand(len(commands)+1, c.command))
 		}
+	}
+	if tweaks.PreventAutomaticReboot {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, PreventAutomaticRebootCommand()))
+	}
+	if tweaks.TurnOffSystemSounds {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, TurnOffSystemSoundsDefaultUserCommand()))
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, TurnOffSystemSoundsUserOnceCommand()))
+	}
+	if tweaks.DisableAppSuggestions {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, DisableAppSuggestionsDefaultUserCommand()))
+	}
+	if tweaks.DisablePointerPrecision {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, DisablePointerPrecisionCommand()))
+	}
+	if tweaks.DeleteHiddenJunctions {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, DeleteJunctionsUserOnceCommand()))
 	}
 	if cmd := PasswordExpirationCommand(passwordExpiration); cmd != "" {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
@@ -227,7 +255,7 @@ type ShellSetupOOBE struct {
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
 // firstLogon, express and wifi. It returns nil when there is nothing to
 // configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, deleteHiddenJunctions bool, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -311,6 +339,9 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 	}
 	if cmd := RemoveFeaturesFirstLogonCommand(removeFeatures); cmd != "" {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
+	}
+	if deleteHiddenJunctions {
+		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: DeleteJunctionsFirstLogonCommand()})
 	}
 	for _, cmd := range FirstLogonScriptsCommands(firstLogonScripts) {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
