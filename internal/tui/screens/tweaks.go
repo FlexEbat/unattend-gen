@@ -61,9 +61,12 @@ var tweakLabels = [tweaksCount]string{
 	"Disable app suggestions / Content Delivery Manager",
 	"Disable Enhance Pointer Precision",
 	"Prevent download/install of apps for hardware devices",
+	"Harden system drive ACL (remove Authenticated Users write access)",
+	"Make Edge uninstallable",
+	"Delete C:\\Windows.old",
 }
 
-const tweaksCount = 23
+const tweaksCount = 26
 
 // Tweaks is the express settings / system tweaks / account policy screen.
 type Tweaks struct {
@@ -174,6 +177,9 @@ func tweaksToValues(tw profile.SystemTweaks) [tweaksCount]bool {
 		tw.DisableAppSuggestions,
 		tw.DisablePointerPrecision,
 		tw.PreventDeviceApps,
+		tw.HardenSystemDriveACL,
+		tw.MakeEdgeUninstallable,
+		tw.DeleteWindowsOld,
 	}
 }
 
@@ -202,6 +208,9 @@ func valuesToTweaks(v [tweaksCount]bool) profile.SystemTweaks {
 		DisableAppSuggestions:      v[20],
 		DisablePointerPrecision:    v[21],
 		PreventDeviceApps:          v[22],
+		HardenSystemDriveACL:       v[23],
+		MakeEdgeUninstallable:      v[24],
+		DeleteWindowsOld:           v[25],
 	}
 }
 
