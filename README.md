@@ -25,8 +25,10 @@ no matter how it was filled in.
   Microsoft has patched around this more than once, so it isn't guaranteed on
   every Windows build)
 - Wi-Fi profile (SSID, WPA2/WPA3/open, hidden networks)
-- Remove preinstalled apps (Xbox, Teams, Solitaire, Cortana, and 28 more) and
-  Windows features (Internet Explorer, WordPad, OpenSSH Client, and more)
+- Remove preinstalled apps (Xbox, Teams, Solitaire, OneDrive, Microsoft Store,
+  Windows Terminal, and 36 more), Windows features (Internet Explorer,
+  WordPad, OpenSSH Client, Windows Hello, and more), and legacy optional
+  features (Recall, Remote Desktop Client, Media Features)
 - Custom scripts (.cmd/.ps1/.reg/.vbs) at four points: System (before
   accounts exist), DefaultUser (every account, including future ones),
   FirstLogon (once) and UserOnce (once per account)
