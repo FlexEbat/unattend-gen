@@ -1,10 +1,11 @@
 # tech.md — unattend-gen
 
-**Версия: v19** (2026-09-04)
+**Версия: v20** (2026-09-04)
 
 Changelog:
+- v20 — слайс 18 (tech.md backlog group B, остаток — ЗАКРЫТА полностью): `SystemTweaks` 23→26, новые — `HardenSystemDriveACL`, `MakeEdgeUninstallable`, `DeleteWindowsOld`. Сигнатура `NewShellSetupOOBE` выросла ещё на один параметр (`deleteWindowsOld` — единственный из троицы, который живёт в FirstLogonCommands, а не в Deployment/specialize). Раздел 9.3 дополнен.
 - v19 — слайс 17 (tech.md backlog group A, largely closed): `RemovableApp` 32→42 (10 новых Appx + `AppOneDrive` через новый custom-механизм), `RemovableFeature` 7→11 (4 новых DISM capability), новый тип `RemovableOptionalFeature` (3 значения) + новый файл `optionalfeatures.go` — третий механизм удаления (`Disable-WindowsOptionalFeature`), закрывший Media Features/Recall/Remote Desktop Client. Побочный фикс: `FeatureSpeech` получил второй capability-селектор. Раздел 4/9.6 переписаны.
-- v18 — слайс 16 (tech.md backlog group B, частично): `SystemTweaks` 17→23 поля, новые — `DeleteHiddenJunctions`, `PreventAutomaticReboot`, `TurnOffSystemSounds`, `DisableAppSuggestions`, `DisablePointerPrecision`, `PreventDeviceApps`. Новый файл `internal/xmlgen/components/optimizations.go`, раздел 9.3 расписан подробно. `Harden ACLs`/`Make Edge uninstallable`/`Delete Windows.old` остались в бэклоге (группа B сокращена до них).
+- v18 — слайс 16 (tech.md backlog group B, частично): `SystemTweaks` 17→23 поля, новые — `DeleteHiddenJunctions`, `PreventAutomaticReboot`, `TurnOffSystemSounds`, `DisableAppSuggestions`, `DisablePointerPrecision`, `PreventDeviceApps`. Новый файл `internal/xmlgen/components/optimizations.go`, раздел 9.3 расписан подробно.
 - v17 — раздел 15 (бэклог) переписан по итогам полной постраничной сверки с schneegans.de (commit `88d81f0`): раскрыт по группам A–F с приоритетом, найдено ~30 новых незадокументированных гэпов (расширенный Windows PE stage, Activation, Processor architectures, Start menu/taskbar целиком, Lock key settings, Sticky keys, Folders on Start, VM host core isolation, ~18 недостающих приложений в Remove bloatware, ещё 6 System tweaks). Уточнено: Windows Fax and Scan больше не в списке сайта, убран из бэклога.
 - v16 — восстановлен после удаления из репозитория. Актуализирован по фактическому коду: слайсы 0–15 сделаны (последний — v0.15.0, solid-цвет обоев). Заморожены: `Profile` (внутри — `SystemTweaks`, `WifiSettings`, `RemovableApp`/`RemovableFeature`, `CustomScript`, `PasswordExpirationSettings`, `AccountLockoutSettings`, `FileExplorerSettings`, `PersonalizationSettings`), API `profile.ValidateProfile`/`xmlgen.BuildAnswerFile`, структура папок, слои `cli → tui/xmlgen ← profile`.
 - v1 — первая версия контракта (слайсы 0–6: каркас, язык/издание, компьютер/аккаунты, CLI end-to-end, express settings + tweaks, TUI + пресеты, Wi-Fi).
@@ -144,7 +145,7 @@ type Profile struct {
 - `UserAccount{Name string (≤20), DisplayName *string, Password *string (nil=без пароля, "" запрещено), Group: Administrators|Users}`.
 - `FirstLogon{Mode: first_created_account|builtin_administrator|none, BuiltinAdministratorPassword *string}`.
 - `ExpressSettings{Mode: all_disabled|all_enabled|interactive}`.
-- `SystemTweaks` — 23 булевых поля (17 из слайса 8 + 6 из слайса 16, см. раздел 9.3), все опциональны, zero value = ничего не меняется.
+- `SystemTweaks` — 26 булевых полей (17 из слайса 8 + 6 из слайса 16 + 3 из слайса 18, см. раздел 9.3), все опциональны, zero value = ничего не меняется.
 - `WifiSettings{SSID (≤32), Authentication: Open|WPA2Personal|WPA3Personal, Password *string, ConnectHidden bool}`.
 - `RemovableApp` — строковый enum, 42 значения (31 из слайса 9 + 10 простых из слайса 17 + `OneDrive`, у которого другой механизм, см. раздел 9.6; список — `profile.RemovableApps`, порядок = порядок в TUI).
 - `RemovableFeature` — строковый enum, 11 значений (`profile.RemovableFeatures`): InternetExplorer, WordPad, PowerShellISE, OpenSSHClient, MediaPlayer, Speech, Handwriting (слайс 11) + WindowsHello, MathInputPanel, OneSync, StepsRecorder (слайс 17).
@@ -278,7 +279,7 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 Каждый флаг `SystemTweaks` — одна или несколько команд в общем списке `RunSynchronousCommand` этого компонента (тот же компонент несёт также команды из `PasswordExpiration`/`AccountLockout`/скриптов System и DefaultUser):
 
-Простые (одна reg.exe-команда): `DisableWindowsUpdate`, `DisableUAC`, `BypassWin11Requirements` (единственный tweak через `Microsoft-Windows-Setup/RunSynchronous` в windowsPE, а не Deployment/specialize — раньше в загрузке), `DisableSmartAppControl`, `DisableSmartScreen`, `DisableFastStartup`, `DisableSystemRestore`, `EnableLongPaths`, `EnableRemoteDesktop`, `AllowPowerShellScripts`, `DisableLastAccessTimestamp`, `PreventDeviceEncryption`, `DisableAutoSignOnLastUser`, `DisableWPBT`, `AuditProcessCreation`, `HideEdgeFirstRun`, `DisableEdgeStartupBoost`, `PreventDeviceApps` (slice 16).
+Простые (одна reg.exe-команда): `DisableWindowsUpdate`, `DisableUAC`, `BypassWin11Requirements` (единственный tweak через `Microsoft-Windows-Setup/RunSynchronous` в windowsPE, а не Deployment/specialize — раньше в загрузке), `DisableSmartAppControl`, `DisableSmartScreen`, `DisableFastStartup`, `DisableSystemRestore`, `EnableLongPaths`, `EnableRemoteDesktop`, `AllowPowerShellScripts`, `DisableLastAccessTimestamp`, `PreventDeviceEncryption`, `DisableAutoSignOnLastUser`, `DisableWPBT`, `AuditProcessCreation`, `HideEdgeFirstRun`, `DisableEdgeStartupBoost`, `PreventDeviceApps` (слайс 16), `HardenSystemDriveACL` (слайс 18, `icacls.exe C:\ /remove:g "*S-1-5-11"`, снимает права Authenticated Users на корень системного диска).
 
 Составные (slice 16, `internal/xmlgen/components/optimizations.go`, механизмы сверены с исходником github.com/cschneegans/unattend-generator, `modifier/Optimizations.cs`, не по памяти):
 
@@ -287,6 +288,8 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 - `DisablePointerPrecision` — 1 команда, только default-user hive (`Control Panel\Mouse`: MouseSpeed/MouseThreshold1/MouseThreshold2 = REG_SZ "0").
 - `PreventAutomaticReboot` — 1 команда: 2 reg.exe (`WindowsUpdate\AU`: AUOptions=4, NoAutoRebootWithLoggedOnUsers=1) + `Register-ScheduledTask` с embedded XML задачи `MoveActiveHours` (сдвигает "активные часы" на текущее время каждые 4 часа, чтобы Windows не считала машину простаивающей).
 - `DeleteHiddenJunctions` — 2 команды в разных pass'ах: `DeleteJunctionsFirstLogonCommand` (oobeSystem FirstLogonCommands, чистит reparse-point'ы вроде `C:\Documents and Settings` для аккаунта из установки) + `DeleteJunctionsUserOnceCommand` (specialize, тот же RunOnce-механизм что и `UserOnceScriptCommand`, для будущих аккаунтов).
+- `DeleteWindowsOld` (слайс 18) — 1 команда, `FirstLogonCommands` (oobeSystem, не Deployment/specialize): `cmd.exe /c "rmdir C:\Windows.old"`. Точно как у сайта-эталона — без `/s`/`/q`, поэтому на непустой директории тихо ничего не делает; для чистой установки (без апгрейда) это безвредный no-op.
+- `MakeEdgeUninstallable` (слайс 18) — 1 команда, `MakeEdgeUninstallableCommand`, specialize: запускает ps1, который правит `defaultState` политики Edge (`{1bca278a-5d11-4acf-ad2f-f9ab6d7f93a6}`) в `C:\Windows\System32\IntegratedServicesRegionPolicySet.json` с `disabled` на `enabled` — только так у Edge появляется реальная кнопка "Удалить" в "Приложениях и компонентах". Скрипт скопирован дословно из `resource/MakeEdgeUninstallable.ps1` эталона.
 
 Точные реестровые пути/утилиты — в `internal/xmlgen/components/setup.go`/`optimizations.go` и комментариях к каждому tweak; при добавлении нового tweak путь проверяется заново, не копируется по аналогии вслепую.
 
@@ -413,6 +416,8 @@ CONTRACT GAP
 
 - **17**: расширение Remove bloatware (tech.md backlog group A, 14 из ~18 позиций) + новый механизм удаления. 10 новых `RemovableApp` через существующий Appx-механизм (Bing Search, Dev Home, Game Assist, Microsoft Store, Notepad modern, Outlook for Windows, Paint, Wallet, Windows Media Player modern, Windows Terminal), 4 новых `RemovableFeature` через существующий DISM-capability-механизм (Windows Hello, Math Input Panel, OneSync, Steps Recorder), `AppOneDrive` через новый custom-механизм (файлы + default-user-hive run-key, не Appx). Новый файл `internal/xmlgen/components/optionalfeatures.go` + тип `RemovableOptionalFeature` — третий механизм удаления (`Disable-WindowsOptionalFeature`), закрывает Recall/MediaFeatures/RemoteDesktopClient. Побочно исправлена неточность в `FeatureSpeech` (второй capability-селектор). Экран Apps получил третью группу чекбоксов. Media Features и Recall изначально требовали нового механизма — реализован в этом же слайсе, не отложен. PowerShell 2.0 (тот же новый механизм) в бэклоге сознательно не тронут.
 
+- **18**: остаток Group B (`Harden ACLs`, `Make Edge uninstallable`, `Delete Windows.old`) — все 3 механизма сверены с `modifier/Optimizations.cs` эталона. `HardenSystemDriveACL` — простая specialize-команда. `DeleteWindowsOld` — FirstLogonCommands (oobeSystem), не specialize, как остальные tweaks — важное отличие, учтено в сигнатуре `NewShellSetupOOBE`. `MakeEdgeUninstallable` — specialize, ps1-скрипт скопирован дословно из `resource/MakeEdgeUninstallable.ps1`. `SystemTweaks` 23→26. Group B бэклога закрыта полностью.
+
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
 Источник: [schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/), commit `88d81f0`. Сверка сделана постранично, раздел за разделом сайта, против фактического кода (не только против старого текста этого файла — там нашлись расхождения, см. ниже).
@@ -426,10 +431,7 @@ CONTRACT GAP
 
 **Media Features и Recall — вынесены из группы A, требовали НОВОГО механизма.** У сайта они (и Remote Desktop Client — уже был неучтён как отдельный гэп) используют `Get-WindowsOptionalFeature`/`Disable-WindowsOptionalFeature` — третий механизм удаления, отдельный от Appx и DISM capability, который раньше в проекте не был реализован (упоминался в бэклоге только применительно к PowerShell 2.0). Слайс 17 реализовал и его: новый файл `internal/xmlgen/components/optionalfeatures.go`, новый тип `profile.RemovableOptionalFeature` + поле `Profile.RemoveOptionalFeatures`, все 3 позиции (Recall, MediaFeatures, RemoteDesktopClient) закрыты этим же слайсом.
 
-**Группа B — оставшиеся System tweaks (не взятые в слайс 16, другой/более рискованный механизм для каждого).**
-- `Harden ACLs` — известный пункт, пропущен в слайсе 8 как более рискованный (снимает права записи для Authenticated Users на `C:\`).
-- `Make Edge uninstallable` — известный пункт, другой механизм (правка JSON-файла `IntegratedServicesRegionPolicySet.json`, не реестра).
-- `Delete empty C:\Windows.old` — известный пункт, сознательно не подходит (не применимо к чистой установке, только к апгрейду).
+**Группа B — оставшиеся System tweaks — ЗАКРЫТА полностью в слайсе 18.**
 
 **Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI).**
 - **Lock key settings** — начальное состояние (Off/On) и поведение (Toggle/Ignore) для Caps Lock/Num Lock/Scroll Lock. Раздела нет вообще.
