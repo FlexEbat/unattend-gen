@@ -122,6 +122,7 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		{tweaks.TurnOffSystemSounds, disableStartupSoundCommand},
 		{tweaks.DisableAppSuggestions, disableAppSuggestionsCommand},
 		{tweaks.PreventDeviceApps, preventDeviceAppsCommand},
+		{tweaks.HardenSystemDriveACL, hardenSystemDriveACLCommand},
 	}
 
 	var commands []runSynchronousCommand
@@ -129,6 +130,9 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		if c.enabled {
 			commands = append(commands, newRunSynchronousCommand(len(commands)+1, c.command))
 		}
+	}
+	if tweaks.MakeEdgeUninstallable {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, MakeEdgeUninstallableCommand()))
 	}
 	if tweaks.PreventAutomaticReboot {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, PreventAutomaticRebootCommand()))
@@ -259,7 +263,7 @@ type ShellSetupOOBE struct {
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
 // firstLogon, express and wifi. It returns nil when there is nothing to
 // configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, deleteWindowsOld bool, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -349,6 +353,9 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 	}
 	if deleteHiddenJunctions {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: DeleteJunctionsFirstLogonCommand()})
+	}
+	if deleteWindowsOld {
+		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: deleteWindowsOldCommand})
 	}
 	for _, cmd := range FirstLogonScriptsCommands(firstLogonScripts) {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
