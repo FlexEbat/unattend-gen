@@ -55,6 +55,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateRemoveApps(p.RemoveApps)...)
 	errs = append(errs, validateDefaultUserScripts(p.DefaultUserScripts)...)
 	errs = append(errs, validateRemoveFeatures(p.RemoveFeatures)...)
+	errs = append(errs, validateRemoveOptionalFeatures(p.RemoveOptionalFeatures)...)
 	errs = append(errs, validatePersonalization(p.Personalization)...)
 	errs = append(errs, validatePasswordExpiration(p.PasswordExpiration)...)
 	errs = append(errs, validateAccountLockout(p.AccountLockout)...)
@@ -230,6 +231,23 @@ func validateRemoveFeatures(features []RemovableFeature) []string {
 		}
 		if !known {
 			errs = append(errs, "Неизвестный компонент для удаления: "+string(f))
+		}
+	}
+	return errs
+}
+
+func validateRemoveOptionalFeatures(features []RemovableOptionalFeature) []string {
+	var errs []string
+	for _, f := range features {
+		known := false
+		for _, allowed := range RemovableOptionalFeatures {
+			if f == allowed {
+				known = true
+				break
+			}
+		}
+		if !known {
+			errs = append(errs, "Неизвестный необязательный компонент для удаления: "+string(f))
 		}
 	}
 	return errs

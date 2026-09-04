@@ -60,12 +60,12 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.Timezone); shellSpecialize != nil {
 		specialize = append(specialize, shellSpecialize)
 	}
-	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
+	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
 		specialize = append(specialize, deployment)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
-	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps, p.RemoveFeatures, p.SystemTweaks.DeleteHiddenJunctions, p.FirstLogonScripts, p.RestartExplorerAfterScripts); shellOOBE != nil {
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps, p.RemoveFeatures, p.RemoveOptionalFeatures, p.SystemTweaks.DeleteHiddenJunctions, p.FirstLogonScripts, p.RestartExplorerAfterScripts); shellOOBE != nil {
 		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
 	}
 

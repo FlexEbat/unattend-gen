@@ -163,6 +163,21 @@ const (
 	AppVoiceRecorder       RemovableApp = "VoiceRecorder"
 	AppWeather             RemovableApp = "Weather"
 	AppXboxApps            RemovableApp = "XboxApps"
+	// Slice 17 additions (tech.md backlog group A).
+	AppBingSearch  RemovableApp = "BingSearch"
+	AppDevHome     RemovableApp = "DevHome"
+	AppGameAssist  RemovableApp = "GameAssist"
+	AppStore       RemovableApp = "Store"
+	AppNotepad     RemovableApp = "Notepad"
+	AppOutlook     RemovableApp = "Outlook"
+	AppPaint       RemovableApp = "Paint"
+	AppWallet      RemovableApp = "Wallet"
+	AppMediaPlayer RemovableApp = "MediaPlayerModern"
+	AppTerminal    RemovableApp = "Terminal"
+	// AppOneDrive uses a different mechanism (no Appx package to remove —
+	// deletes leftover files and a run-key, see RemoveOneDrive*Command in
+	// apps.go), not the DisplayName-pattern map below.
+	AppOneDrive RemovableApp = "OneDrive"
 )
 
 // RemovableApps lists every valid RemoveApps entry, in the order shown in
@@ -174,14 +189,15 @@ var RemovableApps = []RemovableApp{
 	AppPaint3D, AppPeople, AppPhoneLink, AppPowerAutomate, AppQuickAssist,
 	AppSkype, AppSnippingTool, AppSolitaireCollection, AppStickyNotes,
 	AppTeams, AppTips, AppToDo, AppVoiceRecorder, AppWeather, AppXboxApps,
+	AppBingSearch, AppDevHome, AppGameAssist, AppStore, AppNotepad,
+	AppOutlook, AppPaint, AppWallet, AppMediaPlayer, AppTerminal, AppOneDrive,
 }
 
 // RemovableFeature is a Windows capability (DISM Get-WindowsCapability /
 // Remove-WindowsCapability) xmlgen knows how to remove. Different mechanism
-// from RemovableApp (Appx packages): PowerShell 2.0 and Windows Fax and
-// Scan are on schneegans.de's list too but use a third mechanism (legacy
-// Windows optional features, Disable-WindowsOptionalFeature) not covered
-// here.
+// from RemovableApp (Appx packages) and from RemovableOptionalFeature
+// (Get-WindowsOptionalFeature / Disable-WindowsOptionalFeature, a third,
+// separate mechanism — see optionalfeatures.go).
 type RemovableFeature string
 
 const (
@@ -192,6 +208,11 @@ const (
 	FeatureMediaPlayer      RemovableFeature = "MediaPlayer"
 	FeatureSpeech           RemovableFeature = "Speech"
 	FeatureHandwriting      RemovableFeature = "Handwriting"
+	// Slice 17 additions (tech.md backlog group A).
+	FeatureWindowsHello   RemovableFeature = "WindowsHello"
+	FeatureMathInputPanel RemovableFeature = "MathInputPanel"
+	FeatureOneSync        RemovableFeature = "OneSync"
+	FeatureStepsRecorder  RemovableFeature = "StepsRecorder"
 )
 
 // RemovableFeatures lists every valid RemoveFeatures entry, in the order
@@ -199,6 +220,26 @@ const (
 var RemovableFeatures = []RemovableFeature{
 	FeatureInternetExplorer, FeatureWordPad, FeaturePowerShellISE,
 	FeatureOpenSSHClient, FeatureMediaPlayer, FeatureSpeech, FeatureHandwriting,
+	FeatureWindowsHello, FeatureMathInputPanel, FeatureOneSync, FeatureStepsRecorder,
+}
+
+// RemovableOptionalFeature is a legacy Windows optional feature (DISM
+// Get-WindowsOptionalFeature / Disable-WindowsOptionalFeature) xmlgen knows
+// how to remove — the third removal mechanism, distinct from RemovableApp
+// (Appx) and RemovableFeature (DISM capability). Added in slice 17;
+// PowerShell 2.0 uses this same mechanism but stays in the backlog.
+type RemovableOptionalFeature string
+
+const (
+	OptionalFeatureRecall              RemovableOptionalFeature = "Recall"
+	OptionalFeatureMediaFeatures       RemovableOptionalFeature = "MediaFeatures"
+	OptionalFeatureRemoteDesktopClient RemovableOptionalFeature = "RemoteDesktopClient"
+)
+
+// RemovableOptionalFeatures lists every valid RemoveOptionalFeatures entry,
+// in the order shown in the TUI.
+var RemovableOptionalFeatures = []RemovableOptionalFeature{
+	OptionalFeatureRecall, OptionalFeatureMediaFeatures, OptionalFeatureRemoteDesktopClient,
 }
 
 // ScriptFormat is the file format a CustomScript is written and run as.
@@ -324,6 +365,7 @@ type Profile struct {
 	BypassOnlineAccountRequirement bool                       `json:"bypass_online_account_requirement"`
 	RemoveApps                     []RemovableApp             `json:"remove_apps"`
 	RemoveFeatures                 []RemovableFeature         `json:"remove_features"`
+	RemoveOptionalFeatures         []RemovableOptionalFeature `json:"remove_optional_features"`
 	PasswordExpiration             PasswordExpirationSettings `json:"password_expiration"`
 	AccountLockout                 AccountLockoutSettings     `json:"account_lockout"`
 	FileExplorer                   FileExplorerSettings       `json:"file_explorer"`
