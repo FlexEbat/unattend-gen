@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v18** (2026-09-04)
+**Версия: v19** (2026-09-04)
 
 Changelog:
+- v19 — слайс 17 (tech.md backlog group A, largely closed): `RemovableApp` 32→42 (10 новых Appx + `AppOneDrive` через новый custom-механизм), `RemovableFeature` 7→11 (4 новых DISM capability), новый тип `RemovableOptionalFeature` (3 значения) + новый файл `optionalfeatures.go` — третий механизм удаления (`Disable-WindowsOptionalFeature`), закрывший Media Features/Recall/Remote Desktop Client. Побочный фикс: `FeatureSpeech` получил второй capability-селектор. Раздел 4/9.6 переписаны.
 - v18 — слайс 16 (tech.md backlog group B, частично): `SystemTweaks` 17→23 поля, новые — `DeleteHiddenJunctions`, `PreventAutomaticReboot`, `TurnOffSystemSounds`, `DisableAppSuggestions`, `DisablePointerPrecision`, `PreventDeviceApps`. Новый файл `internal/xmlgen/components/optimizations.go`, раздел 9.3 расписан подробно. `Harden ACLs`/`Make Edge uninstallable`/`Delete Windows.old` остались в бэклоге (группа B сокращена до них).
 - v17 — раздел 15 (бэклог) переписан по итогам полной постраничной сверки с schneegans.de (commit `88d81f0`): раскрыт по группам A–F с приоритетом, найдено ~30 новых незадокументированных гэпов (расширенный Windows PE stage, Activation, Processor architectures, Start menu/taskbar целиком, Lock key settings, Sticky keys, Folders on Start, VM host core isolation, ~18 недостающих приложений в Remove bloatware, ещё 6 System tweaks). Уточнено: Windows Fax and Scan больше не в списке сайта, убран из бэклога.
 - v16 — восстановлен после удаления из репозитория. Актуализирован по фактическому коду: слайсы 0–15 сделаны (последний — v0.15.0, solid-цвет обоев). Заморожены: `Profile` (внутри — `SystemTweaks`, `WifiSettings`, `RemovableApp`/`RemovableFeature`, `CustomScript`, `PasswordExpirationSettings`, `AccountLockoutSettings`, `FileExplorerSettings`, `PersonalizationSettings`), API `profile.ValidateProfile`/`xmlgen.BuildAnswerFile`, структура папок, слои `cli → tui/xmlgen ← profile`.
@@ -123,6 +124,7 @@ type Profile struct {
     BypassOnlineAccountRequirement bool
     RemoveApps                     []RemovableApp
     RemoveFeatures                 []RemovableFeature
+    RemoveOptionalFeatures         []RemovableOptionalFeature
     PasswordExpiration             PasswordExpirationSettings
     AccountLockout                 AccountLockoutSettings
     FileExplorer                   FileExplorerSettings
@@ -144,8 +146,9 @@ type Profile struct {
 - `ExpressSettings{Mode: all_disabled|all_enabled|interactive}`.
 - `SystemTweaks` — 23 булевых поля (17 из слайса 8 + 6 из слайса 16, см. раздел 9.3), все опциональны, zero value = ничего не меняется.
 - `WifiSettings{SSID (≤32), Authentication: Open|WPA2Personal|WPA3Personal, Password *string, ConnectHidden bool}`.
-- `RemovableApp` — строковый enum, 32 значения (список — `profile.RemovableApps`, порядок = порядок в TUI).
-- `RemovableFeature` — строковый enum, 7 значений (`profile.RemovableFeatures`): InternetExplorer, WordPad, PowerShellISE, OpenSSHClient, MediaPlayer, Speech, Handwriting.
+- `RemovableApp` — строковый enum, 42 значения (31 из слайса 9 + 10 простых из слайса 17 + `OneDrive`, у которого другой механизм, см. раздел 9.6; список — `profile.RemovableApps`, порядок = порядок в TUI).
+- `RemovableFeature` — строковый enum, 11 значений (`profile.RemovableFeatures`): InternetExplorer, WordPad, PowerShellISE, OpenSSHClient, MediaPlayer, Speech, Handwriting (слайс 11) + WindowsHello, MathInputPanel, OneSync, StepsRecorder (слайс 17).
+- `RemovableOptionalFeature` — строковый enum, 3 значения (`profile.RemovableOptionalFeatures`): Recall, MediaFeatures, RemoteDesktopClient (слайс 17) — третий механизм удаления, см. раздел 9.6.
 - `CustomScript{Format: cmd|ps1|reg|vbs, Content string}`.
 - `PasswordExpirationSettings{Mode: default|never|custom (""=default), Days *int}`.
 - `AccountLockoutSettings{Mode: default|disabled|custom (""=default), Threshold/WindowMinutes/DurationMinutes *int}`.
@@ -306,8 +309,10 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 ### 9.6 Приложения и компоненты
 
-- `apps.go`: сопоставление `RemovableApp → подстроки DisplayName` (не `PackageFamilyName` — те меняются между версиями Windows), команда `Get-AppxProvisionedPackage | Remove-AppxProvisionedPackage`.
-- `features.go`: сопоставление `RemovableFeature → префикс DISM capability Name` (обратная ситуация: `Name` стабилен, суффикс `~~~lang~version` — нет), `Get-WindowsCapability -Online | Where Name -like "Prefix*" | Remove-WindowsCapability -Online`.
+- `apps.go`: сопоставление `RemovableApp → подстроки DisplayName` (не `PackageFamilyName` — те меняются между версиями Windows), команда `Get-AppxProvisionedPackage | Remove-AppxProvisionedPackage`. Все селекторы (включая слайс 17) сверены с `resource/Bloatware.json` из github.com/cschneegans/unattend-generator, не по памяти. Осторожность: `AppPaint` использует паттерн `Microsoft.Paint` (не короткое `Paint`), чтобы не задеть `AppPaint3D` (`Paint3D`/старый пакет `Microsoft.MSPaint`) — покрыто тестом на коллизию.
+- `apps.go`: `AppOneDrive` — единственное исключение из паттерн-механизма выше: OneDrive не Appx-пакет, а отдельный инсталлятор. `RemoveOneDriveFilesCommand` (specialize, без монтирования куста) удаляет ярлык и `OneDriveSetup.exe`/`OneDriveSetup.exe` (SysWOW64); `RemoveOneDriveDefaultUserCommand` (specialize, монтирует default-user hive) удаляет автозапуск из `...\CurrentVersion\Run`. Обе команды — отдельные `RunSynchronousCommand` в `Microsoft-Windows-Deployment`, не FirstLogonCommands.
+- `features.go`: сопоставление `RemovableFeature → префикс(ы) DISM capability Name` (обратная ситуация: `Name` стабилен, суффикс `~~~lang~version` — нет), `Get-WindowsCapability -Online | Where Name -like "Prefix*" | Remove-WindowsCapability -Online`. Одна `RemovableFeature` может маппиться на несколько capability (`WindowsHello` → 3 значения; `Speech` — 2, `Language.Speech`+`Language.TextToSpeech`, исправлено в слайсе 17 — раньше было только первое).
+- `optionalfeatures.go` (слайс 17) — третий, отдельный механизм удаления: `RemovableOptionalFeature → точное имя FeatureName` (не префикс — эти имена не несут version-суффикса), `Get-WindowsOptionalFeature -Online | Where FeatureName -eq Name | Disable-WindowsOptionalFeature -Online -Remove -NoRestart`. Та же FirstLogonCommands-семья (oobeSystem), что Wi-Fi/apps/features, третья по порядку команда. PowerShell 2.0 остаётся в бэклоге, хотя механизм для него теперь есть — не взят в слайс 17 сознательно (не входил в scope «недостающие приложения»).
 
 ### 9.7 Политика паролей/блокировки (`accountpolicy.go`)
 
@@ -406,6 +411,8 @@ CONTRACT GAP
 
 - **16**: доработка System tweaks (tech.md backlog group B, 6 полей) — `DeleteHiddenJunctions`, `PreventAutomaticReboot`, `TurnOffSystemSounds`, `DisableAppSuggestions`, `DisablePointerPrecision`, `PreventDeviceApps`. Механизмы сверены с исходником github.com/cschneegans/unattend-generator (`modifier/Optimizations.cs`), не по памяти. Новый файл `internal/xmlgen/components/optimizations.go`. `SystemTweaks` 17→23 полей, экран Tweaks обновлён (`tweaksCount` 17→23, индексация выведена из константы). `Harden ACLs`, `Make Edge uninstallable`, `Delete empty C:\Windows.old` из Group B сознательно НЕ взяты в этот слайс (другие/более рискованные механизмы) — остаются в бэклоге.
 
+- **17**: расширение Remove bloatware (tech.md backlog group A, 14 из ~18 позиций) + новый механизм удаления. 10 новых `RemovableApp` через существующий Appx-механизм (Bing Search, Dev Home, Game Assist, Microsoft Store, Notepad modern, Outlook for Windows, Paint, Wallet, Windows Media Player modern, Windows Terminal), 4 новых `RemovableFeature` через существующий DISM-capability-механизм (Windows Hello, Math Input Panel, OneSync, Steps Recorder), `AppOneDrive` через новый custom-механизм (файлы + default-user-hive run-key, не Appx). Новый файл `internal/xmlgen/components/optionalfeatures.go` + тип `RemovableOptionalFeature` — третий механизм удаления (`Disable-WindowsOptionalFeature`), закрывает Recall/MediaFeatures/RemoteDesktopClient. Побочно исправлена неточность в `FeatureSpeech` (второй capability-селектор). Экран Apps получил третью группу чекбоксов. Media Features и Recall изначально требовали нового механизма — реализован в этом же слайсе, не отложен. PowerShell 2.0 (тот же новый механизм) в бэклоге сознательно не тронут.
+
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
 Источник: [schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/), commit `88d81f0`. Сверка сделана постранично, раздел за разделом сайта, против фактического кода (не только против старого текста этого файла — там нашлись расхождения, см. ниже).
@@ -414,10 +421,10 @@ CONTRACT GAP
 
 Группы упорядочены по приоритету (первая — предлагаемая следующая, но порядок не жёсткий, решает владелец).
 
-**Группа A — расширение Remove bloatware (низкий риск, тот же механизм, что уже есть).**
-Список сайта — 58 приложений, в проекте `RemovableApps` — 31 (Appx) + `RemovableFeatures` — 7 (DISM capability). Раньше в комментариях кода было написано, что пропущено «только то, что требует Remove-WindowsCapability» — это неточно, реально не хватает ещё ~18 позиций, никак не связанных с DISM-механизмом:
-Bing Search, Dev Home, Facial recognition (Windows Hello), Game Assist, Math Input Panel, Media Features (отдельная от Windows Media Player позиция), **Microsoft Store**, Notepad (modern), **OneDrive**, OneSync, **Outlook for Windows**, **Paint** (не Paint3D — Paint отдельно), **Recall**, Remote Desktop Client, Steps Recorder, Wallet, Windows Media Player (modern), **Windows Terminal**.
-Жирным — самые вероятные частые запросы аудитории (OneDrive, Microsoft Store, Recall, Windows Terminal, Paint). Каждое имя перед добавлением в `apps.go` проверяется отдельно — какая у него реальная `DisplayName` подстрока в `Get-AppxProvisionedPackage`, по аналогии с уже существующими 31, не по памяти.
+**Группа A — расширение Remove bloatware — ЗАКРЫТО в слайсе 17, кроме Media Features/Recall (см. ниже).**
+Реализовано 14 из ~18 недостающих позиций: 10 через существующий Appx-механизм (`apps.go`: Bing Search, Dev Home, Game Assist, Microsoft Store, Notepad (modern), Outlook for Windows, Paint, Wallet, Windows Media Player (modern), Windows Terminal), 4 через существующий DISM-capability-механизм (`features.go`: Facial recognition/Windows Hello — 3 capability, Math Input Panel, OneSync, Steps Recorder), 1 через новый custom-механизм (OneDrive — не Appx-пакет, а файлы + default-user-hive registry run-key, см. `RemoveOneDrive*Command` в `apps.go`). Точные селекторы взяты из `resource/Bloatware.json` исходника-эталона (github.com/cschneegans/unattend-generator), не по памяти. Попутно исправлена неточность в существующем `FeatureSpeech` — у сайта 2 capability-селектора (`Language.Speech` + `Language.TextToSpeech`), в проекте был только первый.
+
+**Media Features и Recall — вынесены из группы A, требовали НОВОГО механизма.** У сайта они (и Remote Desktop Client — уже был неучтён как отдельный гэп) используют `Get-WindowsOptionalFeature`/`Disable-WindowsOptionalFeature` — третий механизм удаления, отдельный от Appx и DISM capability, который раньше в проекте не был реализован (упоминался в бэклоге только применительно к PowerShell 2.0). Слайс 17 реализовал и его: новый файл `internal/xmlgen/components/optionalfeatures.go`, новый тип `profile.RemovableOptionalFeature` + поле `Profile.RemoveOptionalFeatures`, все 3 позиции (Recall, MediaFeatures, RemoteDesktopClient) закрыты этим же слайсом.
 
 **Группа B — оставшиеся System tweaks (не взятые в слайс 16, другой/более рискованный механизм для каждого).**
 - `Harden ACLs` — известный пункт, пропущен в слайсе 8 как более рискованный (снимает права записи для Authenticated Users на `C:\`).
