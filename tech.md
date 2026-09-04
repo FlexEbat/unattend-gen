@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v17** (2026-09-03)
+**Версия: v18** (2026-09-04)
 
 Changelog:
+- v18 — слайс 16 (tech.md backlog group B, частично): `SystemTweaks` 17→23 поля, новые — `DeleteHiddenJunctions`, `PreventAutomaticReboot`, `TurnOffSystemSounds`, `DisableAppSuggestions`, `DisablePointerPrecision`, `PreventDeviceApps`. Новый файл `internal/xmlgen/components/optimizations.go`, раздел 9.3 расписан подробно. `Harden ACLs`/`Make Edge uninstallable`/`Delete Windows.old` остались в бэклоге (группа B сокращена до них).
 - v17 — раздел 15 (бэклог) переписан по итогам полной постраничной сверки с schneegans.de (commit `88d81f0`): раскрыт по группам A–F с приоритетом, найдено ~30 новых незадокументированных гэпов (расширенный Windows PE stage, Activation, Processor architectures, Start menu/taskbar целиком, Lock key settings, Sticky keys, Folders on Start, VM host core isolation, ~18 недостающих приложений в Remove bloatware, ещё 6 System tweaks). Уточнено: Windows Fax and Scan больше не в списке сайта, убран из бэклога.
 - v16 — восстановлен после удаления из репозитория. Актуализирован по фактическому коду: слайсы 0–15 сделаны (последний — v0.15.0, solid-цвет обоев). Заморожены: `Profile` (внутри — `SystemTweaks`, `WifiSettings`, `RemovableApp`/`RemovableFeature`, `CustomScript`, `PasswordExpirationSettings`, `AccountLockoutSettings`, `FileExplorerSettings`, `PersonalizationSettings`), API `profile.ValidateProfile`/`xmlgen.BuildAnswerFile`, структура папок, слои `cli → tui/xmlgen ← profile`.
 - v1 — первая версия контракта (слайсы 0–6: каркас, язык/издание, компьютер/аккаунты, CLI end-to-end, express settings + tweaks, TUI + пресеты, Wi-Fi).
@@ -141,7 +142,7 @@ type Profile struct {
 - `UserAccount{Name string (≤20), DisplayName *string, Password *string (nil=без пароля, "" запрещено), Group: Administrators|Users}`.
 - `FirstLogon{Mode: first_created_account|builtin_administrator|none, BuiltinAdministratorPassword *string}`.
 - `ExpressSettings{Mode: all_disabled|all_enabled|interactive}`.
-- `SystemTweaks` — 17 булевых полей (см. список в разделе 9.3), все опциональны, zero value = ничего не меняется.
+- `SystemTweaks` — 23 булевых поля (17 из слайса 8 + 6 из слайса 16, см. раздел 9.3), все опциональны, zero value = ничего не меняется.
 - `WifiSettings{SSID (≤32), Authentication: Open|WPA2Personal|WPA3Personal, Password *string, ConnectHidden bool}`.
 - `RemovableApp` — строковый enum, 32 значения (список — `profile.RemovableApps`, порядок = порядок в TUI).
 - `RemovableFeature` — строковый enum, 7 значений (`profile.RemovableFeatures`): InternetExplorer, WordPad, PowerShellISE, OpenSSHClient, MediaPlayer, Speech, Handwriting.
@@ -272,11 +273,19 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 ### 9.3 SystemTweaks → RunSynchronousCommand (specialize, Microsoft-Windows-Deployment)
 
-Каждый флаг `SystemTweaks` — одна команда в общем списке `RunSynchronousCommand` этого компонента (тот же компонент несёт также команды из `PasswordExpiration`/`AccountLockout`/скриптов System и DefaultUser):
+Каждый флаг `SystemTweaks` — одна или несколько команд в общем списке `RunSynchronousCommand` этого компонента (тот же компонент несёт также команды из `PasswordExpiration`/`AccountLockout`/скриптов System и DefaultUser):
 
-`DisableWindowsUpdate`, `DisableUAC`, `BypassWin11Requirements` (это единственный tweak, реализованный через `Microsoft-Windows-Setup/RunSynchronous` в windowsPE, а не через Deployment/specialize — раньше в загрузке), `DisableSmartAppControl`, `DisableSmartScreen`, `DisableFastStartup`, `DisableSystemRestore`, `EnableLongPaths`, `EnableRemoteDesktop`, `AllowPowerShellScripts`, `DisableLastAccessTimestamp`, `PreventDeviceEncryption`, `DisableAutoSignOnLastUser`, `DisableWPBT`, `AuditProcessCreation`, `HideEdgeFirstRun`, `DisableEdgeStartupBoost`.
+Простые (одна reg.exe-команда): `DisableWindowsUpdate`, `DisableUAC`, `BypassWin11Requirements` (единственный tweak через `Microsoft-Windows-Setup/RunSynchronous` в windowsPE, а не Deployment/specialize — раньше в загрузке), `DisableSmartAppControl`, `DisableSmartScreen`, `DisableFastStartup`, `DisableSystemRestore`, `EnableLongPaths`, `EnableRemoteDesktop`, `AllowPowerShellScripts`, `DisableLastAccessTimestamp`, `PreventDeviceEncryption`, `DisableAutoSignOnLastUser`, `DisableWPBT`, `AuditProcessCreation`, `HideEdgeFirstRun`, `DisableEdgeStartupBoost`, `PreventDeviceApps` (slice 16).
 
-Точные реестровые пути/утилиты — в `internal/xmlgen/components/setup.go` и комментариях к каждому tweak; при добавлении нового tweak путь проверяется заново, не копируется по аналогии вслепую.
+Составные (slice 16, `internal/xmlgen/components/optimizations.go`, механизмы сверены с исходником github.com/cschneegans/unattend-generator, `modifier/Optimizations.cs`, не по памяти):
+
+- `TurnOffSystemSounds` — 3 команды: простая (BootAnimation/EditionOverrides, специализируется системно), `TurnOffSystemSoundsDefaultUserCommand` (мont default-user hive, чистит `AppEvents\Schemes` для будущих аккаунтов), `TurnOffSystemSoundsUserOnceCommand` (RunOnce-запись, ставит `.None` в живом `HKCU\AppEvents\Schemes` текущего аккаунта при первом входе).
+- `DisableAppSuggestions` — 2 команды: простая (`CloudContent\DisableWindowsConsumerFeatures`), `DisableAppSuggestionsDefaultUserCommand` (обнуляет 17 значений `ContentDeliveryManager` в default-user hive).
+- `DisablePointerPrecision` — 1 команда, только default-user hive (`Control Panel\Mouse`: MouseSpeed/MouseThreshold1/MouseThreshold2 = REG_SZ "0").
+- `PreventAutomaticReboot` — 1 команда: 2 reg.exe (`WindowsUpdate\AU`: AUOptions=4, NoAutoRebootWithLoggedOnUsers=1) + `Register-ScheduledTask` с embedded XML задачи `MoveActiveHours` (сдвигает "активные часы" на текущее время каждые 4 часа, чтобы Windows не считала машину простаивающей).
+- `DeleteHiddenJunctions` — 2 команды в разных pass'ах: `DeleteJunctionsFirstLogonCommand` (oobeSystem FirstLogonCommands, чистит reparse-point'ы вроде `C:\Documents and Settings` для аккаунта из установки) + `DeleteJunctionsUserOnceCommand` (specialize, тот же RunOnce-механизм что и `UserOnceScriptCommand`, для будущих аккаунтов).
+
+Точные реестровые пути/утилиты — в `internal/xmlgen/components/setup.go`/`optimizations.go` и комментариях к каждому tweak; при добавлении нового tweak путь проверяется заново, не копируется по аналогии вслепую.
 
 ### 9.4 OOBE hide-flags (производные, без отдельных полей профиля)
 
@@ -395,6 +404,8 @@ CONTRACT GAP
 - **14**: персонализация цветов (тема, акцент, прозрачность) — получила отдельный новый экран Personalization.
 - **15**: сплошной цвет обоев рабочего стола — добавлено в существующий `PersonalizationSettings`/экран Personalization, не новый тип.
 
+- **16**: доработка System tweaks (tech.md backlog group B, 6 полей) — `DeleteHiddenJunctions`, `PreventAutomaticReboot`, `TurnOffSystemSounds`, `DisableAppSuggestions`, `DisablePointerPrecision`, `PreventDeviceApps`. Механизмы сверены с исходником github.com/cschneegans/unattend-generator (`modifier/Optimizations.cs`), не по памяти. Новый файл `internal/xmlgen/components/optimizations.go`. `SystemTweaks` 17→23 полей, экран Tweaks обновлён (`tweaksCount` 17→23, индексация выведена из константы). `Harden ACLs`, `Make Edge uninstallable`, `Delete empty C:\Windows.old` из Group B сознательно НЕ взяты в этот слайс (другие/более рискованные механизмы) — остаются в бэклоге.
+
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
 Источник: [schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/), commit `88d81f0`. Сверка сделана постранично, раздел за разделом сайта, против фактического кода (не только против старого текста этого файла — там нашлись расхождения, см. ниже).
@@ -408,12 +419,7 @@ CONTRACT GAP
 Bing Search, Dev Home, Facial recognition (Windows Hello), Game Assist, Math Input Panel, Media Features (отдельная от Windows Media Player позиция), **Microsoft Store**, Notepad (modern), **OneDrive**, OneSync, **Outlook for Windows**, **Paint** (не Paint3D — Paint отдельно), **Recall**, Remote Desktop Client, Steps Recorder, Wallet, Windows Media Player (modern), **Windows Terminal**.
 Жирным — самые вероятные частые запросы аудитории (OneDrive, Microsoft Store, Recall, Windows Terminal, Paint). Каждое имя перед добавлением в `apps.go` проверяется отдельно — какая у него реальная `DisplayName` подстрока в `Get-AppxProvisionedPackage`, по аналогии с уже существующими 31, не по памяти.
 
-**Группа B — доработка System tweaks (тот же компонент Deployment/specialize, что уже есть).**
-Из полного списка сайта (26 пунктов) не хватает:
-- `Delete hidden junction points` — не был замечен при прошлом аудите, отдельный пункт.
-- `Prevent Windows Update from rebooting` (трюк с перемещением active hours через задачу планировщика) — не замечен раньше, механизм отличается от существующего `DisableWindowsUpdate` (тот ставит на паузу, этот не даёт перезагружать).
-- `Turn off system sounds`, `Disable app suggestions / Content Delivery Manager`, `Disable Enhanced Pointer Precision` — в слайсе 8 были пропущены как «нужен default-user-hive механизм, которого нет»; механизм появился в слайсах 13–14 (`fileexplorer.go`/`personalization.go`), так что это уже дешёвые доработки, не блокированные.
-- `Prevent download/install of apps associated with hardware devices` (LG-monitor-bloat policy) — не замечен раньше.
+**Группа B — оставшиеся System tweaks (не взятые в слайс 16, другой/более рискованный механизм для каждого).**
 - `Harden ACLs` — известный пункт, пропущен в слайсе 8 как более рискованный (снимает права записи для Authenticated Users на `C:\`).
 - `Make Edge uninstallable` — известный пункт, другой механизм (правка JSON-файла `IntegratedServicesRegionPolicySet.json`, не реестра).
 - `Delete empty C:\Windows.old` — известный пункт, сознательно не подходит (не применимо к чистой установке, только к апгрейду).

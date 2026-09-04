@@ -15,9 +15,10 @@ no matter how it was filled in.
 
 - Language, locale, keyboard layout, Windows edition and product key
 - Computer name, time zone, and up to 5 local accounts, with auto-logon control
-- Express settings (telemetry) and 17 system tweaks (Windows Update, UAC,
+- Express settings (telemetry) and 23 system tweaks (Windows Update, UAC,
   Windows 11 hardware-check bypass, SmartScreen, Fast Startup, System Restore,
-  long paths, Remote Desktop, and more)
+  long paths, Remote Desktop, junction-point cleanup, Windows Update reboot
+  prevention, and more)
 - OOBE screens (EULA, OEM registration, network setup) are hidden automatically
   once the profile has enough non-interactive settings to complete without
   them; an optional flag skips the Microsoft-account requirement (best-effort —
