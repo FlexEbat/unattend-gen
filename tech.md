@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v20** (2026-09-04)
+**Версия: v21** (2026-09-05)
 
 Changelog:
+- v21 — слайс 19 (tech.md backlog group C, 2 из 9 пунктов): новый файл `internal/xmlgen/components/accessibility.go` (Sticky Keys + Lock Keys), новый тип `StickyKeysSettings`/`LockKeySettings`+`Profile.LockKeys *LockKeySettings`, новый экран `screens.ScreenAccessibility` между Personalization и Scripts. Оба механизма пишут в `HKU\DefaultUser` (будущие аккаунты) и `HKU\.DEFAULT` (текущая сессия/экран блокировки) параллельно. Раздел 3/4/7 обновлены, новый раздел 9.9.
 - v20 — слайс 18 (tech.md backlog group B, остаток — ЗАКРЫТА полностью): `SystemTweaks` 23→26, новые — `HardenSystemDriveACL`, `MakeEdgeUninstallable`, `DeleteWindowsOld`. Сигнатура `NewShellSetupOOBE` выросла ещё на один параметр (`deleteWindowsOld` — единственный из троицы, который живёт в FirstLogonCommands, а не в Deployment/specialize). Раздел 9.3 дополнен.
 - v19 — слайс 17 (tech.md backlog group A, largely closed): `RemovableApp` 32→42 (10 новых Appx + `AppOneDrive` через новый custom-механизм), `RemovableFeature` 7→11 (4 новых DISM capability), новый тип `RemovableOptionalFeature` (3 значения) + новый файл `optionalfeatures.go` — третий механизм удаления (`Disable-WindowsOptionalFeature`), закрывший Media Features/Recall/Remote Desktop Client. Побочный фикс: `FeatureSpeech` получил второй capability-селектор. Раздел 4/9.6 переписаны.
 - v18 — слайс 16 (tech.md backlog group B, частично): `SystemTweaks` 17→23 поля, новые — `DeleteHiddenJunctions`, `PreventAutomaticReboot`, `TurnOffSystemSounds`, `DisableAppSuggestions`, `DisablePointerPrecision`, `PreventDeviceApps`. Новый файл `internal/xmlgen/components/optimizations.go`, раздел 9.3 расписан подробно.
@@ -70,7 +71,7 @@ internal/
     app.go                           NewModel, Model (bubbletea), таблица screens.ID → tea.Model
     screens/
       welcome.go, language.go, accounts.go, tweaks.go, wifi.go,
-      apps.go, personalization.go, scripts.go, review.go
+      apps.go, personalization.go, accessibility.go, scripts.go, review.go
       nav.go                         screens.ID, навигационные сообщения
     widgets/
       labeled_input.go, password_input.go, labeled_select.go,
@@ -84,10 +85,13 @@ internal/
       wlan.go                        Wi-Fi через netsh WLAN-профиль (base64) в FirstLogonCommands
       apps.go                        удаление Appx через Get/Remove-AppxProvisionedPackage
       features.go                    удаление DISM-компонентов через Get/Remove-WindowsCapability
+      optionalfeatures.go            удаление legacy optional features через Get/Disable-WindowsOptionalFeature
       scripts.go                     System/DefaultUser/FirstLogon/UserOnce скрипты, wrapCommand/escapeForOuterCommand
       accountpolicy.go               `net accounts` (истечение пароля, блокировка)
       fileexplorer.go                реестр в default-user hive (видимость файлов, контекстное меню и т.д.)
       personalization.go             реестр в default-user hive (тема, акцентный цвет, обои)
+      optimizations.go               SystemTweaks-твики со слайсов 16/18 (junctions, active-hours, sounds, ACL, Edge uninstallable и т.д.)
+      accessibility.go               Sticky Keys + Lock Keys (default-user hive + HKU\.DEFAULT + Scancode Map)
     builder_*_test.go                по одному файлу тестов на каждый компонент/срез функциональности
 presets/
   presets.go                         go:embed, Names, Load(name)
@@ -155,6 +159,8 @@ type Profile struct {
 - `AccountLockoutSettings{Mode: default|disabled|custom (""=default), Threshold/WindowMinutes/DurationMinutes *int}`.
 - `FileExplorerSettings{HiddenFiles: default|show_hidden|show_all, ShowFileExtensions, ClassicContextMenu, HideFolderTooltips, OpenToThisPC, ShowEndTaskInTaskbar bool}` — zero value ничего не меняет.
 - `PersonalizationSettings{SystemTheme/AppsTheme: light|dark, AccentColor *string (RRGGBB), ShowAccentOnStartTaskbar/ShowAccentOnTitleBars/DisableTransparency bool, SolidColorWallpaper *string (RRGGBB)}` — только цвета; файл обоев и экран блокировки не входят (см. раздел 15, бэклог).
+- `StickyKeysSettings{Mode: default|disabled|custom (""=default), Flags []StickyKeysFlag}` (слайс 19) — `Flags` только при `Mode=custom`, 6 значений (`profile.StickyKeysFlags`).
+- `LockKeySettings{CapsLock/NumLock/ScrollLock: LockKeySetting{Initial: off|on, Behavior: toggle|ignore}}`, поле `Profile.LockKeys *LockKeySettings` (слайс 19) — `nil` = поведение Windows не трогается (как `SkipLockKeySettings` у сайта-эталона).
 
 `profile.Default(name string) *Profile` — профиль по умолчанию, которым стартуют `profile init` без `--preset` и свежая TUI-сессия: `schema_version=1`, язык en-US/en-US/en-US, `Edition.Mode=interactive`, `Accounts=[]`, `FirstLogon.Mode=none`, `ExpressSettings.Mode=interactive`, всё остальное — нулевые значения.
 
@@ -214,10 +220,11 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 ## 7. TUI: экраны и виджеты (заморожен)
 
-Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Scripts → Review**.
+Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Scripts → Review**.
 
 - Каждый экран — отдельный `tea.Model` в `internal/tui/screens/*.go`, общий `*profile.Profile` передаётся через `rebuildScreen` при каждой навигации, так экран всегда синхронизирован с последним состоянием.
-- `screens.ScreenApps` — совмещённый экран: чекбоксы удаляемых приложений (`RemoveApps`) и удаляемых компонентов (`RemoveFeatures`) в одной таблице фокуса.
+- `screens.ScreenApps` — совмещённый экран: чекбоксы удаляемых приложений (`RemoveApps`), удаляемых DISM-компонентов (`RemoveFeatures`) и удаляемых legacy optional features (`RemoveOptionalFeatures`, слайс 17) — три разных механизма, одна таблица фокуса (`internal/tui/screens/apps.go`, `checkboxAt`).
+- `screens.ScreenAccessibility` (слайс 19) — Sticky Keys (select + до 6 чекбоксов, только когда `mode=custom`) и Lock Keys (чекбокс «настраивать» + 6 select'ов, видны только если включён — `nil` `LockKeys` иначе, как на сайте-эталоне). Между Personalization и Scripts.
 - `screens.ScreenTweaks` — самый нагруженный экран: express settings, 17 чекбоксов `SystemTweaks`, политика истечения пароля, политика блокировки аккаунта, настройки File Explorer. Число полей и индекс фокуса вычисляются динамически (условные блоки появляются только когда соответствующий Mode = custom).
 - `screens.ScreenAccounts` — также несёт `Timezone` и `BypassOnlineAccountRequirement`, не только таблицу аккаунтов.
 - Виджеты (`internal/tui/widgets/`), экраны не пишут свой ввод/таблицы напрямую:
@@ -325,6 +332,15 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 `AccentColor` (вход — `RRGGBB`) упаковывается в DWORD `AABBGGRR` (альфа `FF`, байты RGB в обратном порядке) для `DWM\AccentColor`/`ColorizationColor` — единственная содержательная конвертация в этом компоненте, покрыта тестом с известной парой вход/выход. `SolidColorWallpaper` пишет `Control Panel\Colors\Background` как `"R G B"` decimal (тоже конвертация из hex) и очищает `Control Panel\Desktop\Wallpaper`, чтобы показывался цвет, а не картинка.
 
+### 9.9 Sticky Keys и Lock Keys (`accessibility.go`, слайс 19)
+
+Оба раздела отсутствовали в проекте полностью до слайса 19; механизмы сверены с `modifier/Optimizations.cs` эталона.
+
+- **Sticky Keys** — значение `Flags` под `Control Panel\Accessibility\StickyKeys`: база `SKF_AVAILABLE(0x2) | SKF_CONFIRMHOTKEY(0x8)`, ИЛИ выбранные флаги (`HotKeyActive=0x4`, `Indicator=0x20`, `TriState=0x80`, `TwoKeysOff=0x100`, `AudibleFeedback=0x40`, `HotKeySound=0x10`). `Mode=disabled` — те же база-флаги без `HotKeyActive`, то есть отключается сама активация по 5×Shift, а не просто визуальные эффекты. Пишется в ДВА места: `HKU\DefaultUser` (для будущих аккаунтов, load/unload) и `HKU\.DEFAULT` (экран блокировки и любая сессия до загрузки пользовательского куста — этот куст всегда смонтирован, load/unload не нужен). `Mode=default`/`""` — команд не добавляется.
+- **Lock Keys** — `nil` `Profile.LockKeys` = поведение Windows не трогается, `SkipLockKeySettings` у эталона. Если задан:
+  - **Initial** (начальное состояние) — один decimal bitmask (Caps=1, Num=2, Scroll=4) в `InitialKeyboardIndicators` (REG_SZ) под `Control Panel\Keyboard`, тоже в оба места — `HKU\.DEFAULT` напрямую и `HKU\DefaultUser` через load/unload, одной комбинированной командой.
+  - **Behavior=ignore** — бинарный `Scancode Map` (`HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout`, REG_BINARY, вступает в силу после перезагрузки): 4 байта Version(0) + 4 байта Flags(0) + 4 байта little-endian Count(N+1) + по 4 байта на каждую отображаемую клавишу (`[0x00,0x00,scancode_lo,scancode_hi]` — target=0x0000 отключает клавишу) + 4 байта нулевой терминатор. Scancode'ы клавиш: CapsLock=`0x3A`, NumLock=`0x45`, ScrollLock=`0x46`. Команда добавляется только если хотя бы одна клавиша имеет `Behavior=ignore` — если у всех `toggle`, второй команды нет вообще.
+
 ---
 
 ## 10. Сборка и проверки (заморожен)
@@ -418,6 +434,8 @@ CONTRACT GAP
 
 - **18**: остаток Group B (`Harden ACLs`, `Make Edge uninstallable`, `Delete Windows.old`) — все 3 механизма сверены с `modifier/Optimizations.cs` эталона. `HardenSystemDriveACL` — простая specialize-команда. `DeleteWindowsOld` — FirstLogonCommands (oobeSystem), не specialize, как остальные tweaks — важное отличие, учтено в сигнатуре `NewShellSetupOOBE`. `MakeEdgeUninstallable` — specialize, ps1-скрипт скопирован дословно из `resource/MakeEdgeUninstallable.ps1`. `SystemTweaks` 23→26. Group B бэклога закрыта полностью.
 
+- **19**: Sticky Keys + Lock Keys (tech.md backlog group C, 2 из 9 пунктов). Новый файл `internal/xmlgen/components/accessibility.go`, новый экран `screens.ScreenAccessibility` (между Personalization и Scripts). `StickyKeysSettings` (Mode + Flags) и `*LockKeySettings` (nil = не трогать) — оба механизма пишут одновременно в `HKU\DefaultUser` (для будущих аккаунтов) и `HKU\.DEFAULT` (для текущей сессии/экрана блокировки, без load/unload — этот куст всегда смонтирован). Lock Keys' `Behavior=ignore` строит бинарный Scancode Map с нуля (Go-реализация формата, побайтово сверена с C#-источником, покрыта тестом на конкретные hex-байты).
+
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
 Источник: [schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/), commit `88d81f0`. Сверка сделана постранично, раздел за разделом сайта, против фактического кода (не только против старого текста этого файла — там нашлись расхождения, см. ниже).
@@ -433,9 +451,7 @@ CONTRACT GAP
 
 **Группа B — оставшиеся System tweaks — ЗАКРЫТА полностью в слайсе 18.**
 
-**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI).**
-- **Lock key settings** — начальное состояние (Off/On) и поведение (Toggle/Ignore) для Caps Lock/Num Lock/Scroll Lock. Раздела нет вообще.
-- **Sticky keys settings** — включение по 5×Shift, звук, иконка в таскбаре и т.д. Раздела нет вообще.
+**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI). Lock keys/Sticky keys ЗАКРЫТЫ в слайсе 19, остальное открыто.**
 - **Start menu and taskbar** — самый крупный из отсутствующих разделов: режим отображения поля поиска в таскбаре, конфигурация закреплённых иконок таскбара через XML, отключение виджетов, left-align таскбара (Win11), скрытие кнопки Task View, «always show tray icons», отключение Bing-результатов в поиске, плитки Start (Win10) и pins (Win11) через XML/JSON.
 - **Visual effects** — полный набор чекбоксов производительности/анимации (уже был в старом бэклоге под общим названием «визуальные эффекты»).
 - **Desktop icons** — какие иконки рабочего стола показывать (Компьютер/Корзина/Сеть и т.д.) + удаление ярлыка Edge.

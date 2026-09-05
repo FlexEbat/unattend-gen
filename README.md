@@ -38,6 +38,9 @@ no matter how it was filled in.
   to every account, including future ones
 - Personalization colors (light/dark theme, accent color, transparency,
   solid-color wallpaper) — same every-account mechanism
+- Sticky Keys (default/disabled/custom) and lock key (Caps/Num/Scroll)
+  initial state and behavior, applied both to future accounts and the
+  current session/lock screen
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
