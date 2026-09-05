@@ -40,6 +40,7 @@ func NewModel(initial *profile.Profile) Model {
 			screens.ScreenApps:            screens.NewApps(initial),
 			screens.ScreenPersonalization: screens.NewPersonalization(initial),
 			screens.ScreenAccessibility:   screens.NewAccessibility(initial),
+			screens.ScreenDesktop:         screens.NewDesktop(initial),
 			screens.ScreenScripts:         screens.NewScripts(initial),
 			screens.ScreenReview:          screens.NewReview(initial),
 		},
@@ -103,6 +104,8 @@ func rebuildScreen(id screens.ID, p *profile.Profile) tea.Model {
 		return screens.NewPersonalization(p)
 	case screens.ScreenAccessibility:
 		return screens.NewAccessibility(p)
+	case screens.ScreenDesktop:
+		return screens.NewDesktop(p)
 	case screens.ScreenScripts:
 		return screens.NewScripts(p)
 	default:
