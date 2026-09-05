@@ -60,6 +60,8 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validatePasswordExpiration(p.PasswordExpiration)...)
 	errs = append(errs, validateAccountLockout(p.AccountLockout)...)
 	errs = append(errs, validateStickyKeys(p.StickyKeys)...)
+	errs = append(errs, validateDesktopIcons(p.DesktopIcons)...)
+	errs = append(errs, validateStartFolders(p.StartFolders)...)
 
 	if len(errs) > 0 {
 		return ValidationResult{Errors: errs}
@@ -307,6 +309,40 @@ func validateStickyKeys(s StickyKeysSettings) []string {
 		}
 		if !known {
 			errs = append(errs, "Неизвестный флаг Sticky Keys: "+string(f))
+		}
+	}
+	return errs
+}
+
+func validateDesktopIcons(icons map[DesktopIcon]bool) []string {
+	var errs []string
+	for icon := range icons {
+		known := false
+		for _, allowed := range DesktopIcons {
+			if icon == allowed {
+				known = true
+				break
+			}
+		}
+		if !known {
+			errs = append(errs, "Неизвестный значок рабочего стола: "+string(icon))
+		}
+	}
+	return errs
+}
+
+func validateStartFolders(folders []StartFolder) []string {
+	var errs []string
+	for _, f := range folders {
+		known := false
+		for _, allowed := range StartFolders {
+			if f == allowed {
+				known = true
+				break
+			}
+		}
+		if !known {
+			errs = append(errs, "Неизвестная папка для Start: "+string(f))
 		}
 	}
 	return errs

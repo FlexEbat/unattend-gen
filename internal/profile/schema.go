@@ -427,6 +427,59 @@ type LockKeySettings struct {
 	ScrollLock LockKeySetting `json:"scroll_lock"`
 }
 
+// DesktopIcon is one of the well-known desktop icons whose visibility can
+// be toggled independently. Slice 20 (tech.md backlog group C).
+type DesktopIcon string
+
+const (
+	DesktopIconThisPC       DesktopIcon = "ThisPC"
+	DesktopIconUserFiles    DesktopIcon = "UserFiles"
+	DesktopIconNetwork      DesktopIcon = "Network"
+	DesktopIconRecycleBin   DesktopIcon = "RecycleBin"
+	DesktopIconControlPanel DesktopIcon = "ControlPanel"
+	DesktopIconDesktop      DesktopIcon = "Desktop"
+	DesktopIconDocuments    DesktopIcon = "Documents"
+	DesktopIconDownloads    DesktopIcon = "Downloads"
+	DesktopIconMusic        DesktopIcon = "Music"
+	DesktopIconPictures     DesktopIcon = "Pictures"
+	DesktopIconVideos       DesktopIcon = "Videos"
+	DesktopIconGallery      DesktopIcon = "Gallery"
+	DesktopIconHome         DesktopIcon = "Home"
+)
+
+// DesktopIcons lists every valid DesktopIcons map key, in the order shown
+// in the TUI.
+var DesktopIcons = []DesktopIcon{
+	DesktopIconThisPC, DesktopIconUserFiles, DesktopIconNetwork,
+	DesktopIconRecycleBin, DesktopIconControlPanel, DesktopIconDesktop,
+	DesktopIconDocuments, DesktopIconDownloads, DesktopIconMusic,
+	DesktopIconPictures, DesktopIconVideos, DesktopIconGallery, DesktopIconHome,
+}
+
+// StartFolder is one of the special folders that can be pinned next to the
+// power button on the Windows 11 Start menu.
+type StartFolder string
+
+const (
+	StartFolderSettings       StartFolder = "Settings"
+	StartFolderFileExplorer   StartFolder = "FileExplorer"
+	StartFolderDocuments      StartFolder = "Documents"
+	StartFolderDownloads      StartFolder = "Downloads"
+	StartFolderMusic          StartFolder = "Music"
+	StartFolderPictures       StartFolder = "Pictures"
+	StartFolderVideos         StartFolder = "Videos"
+	StartFolderNetwork        StartFolder = "Network"
+	StartFolderPersonalFolder StartFolder = "PersonalFolder"
+)
+
+// StartFolders lists every valid Profile.StartFolders entry, in the order
+// shown in the TUI.
+var StartFolders = []StartFolder{
+	StartFolderSettings, StartFolderFileExplorer, StartFolderDocuments,
+	StartFolderDownloads, StartFolderMusic, StartFolderPictures,
+	StartFolderVideos, StartFolderNetwork, StartFolderPersonalFolder,
+}
+
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
 	SchemaVersion                  int                        `json:"schema_version" validate:"required,eq=1"`
@@ -450,6 +503,8 @@ type Profile struct {
 	Personalization                PersonalizationSettings    `json:"personalization"`
 	StickyKeys                     StickyKeysSettings         `json:"sticky_keys"`
 	LockKeys                       *LockKeySettings           `json:"lock_keys"`
+	DesktopIcons                   map[DesktopIcon]bool       `json:"desktop_icons"`
+	StartFolders                   []StartFolder              `json:"start_folders"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`

@@ -97,7 +97,7 @@ type Deployment struct {
 // DefaultUser scripts and the UserOnce RunOnce registration (in that
 // order). Returns nil when none are set: an empty component is not
 // emitted.
-func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
+func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
 	enabledCommands := []struct {
 		enabled bool
 		command string
@@ -176,6 +176,12 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
 	if cmd := LockKeyScancodeMapCommand(lockKeys); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := DesktopIconsUserOnceCommand(desktopIcons); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := StartFoldersUserOnceCommand(startFolders); cmd != "" {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
 	for _, cmd := range SystemScriptsCommands(systemScripts) {
