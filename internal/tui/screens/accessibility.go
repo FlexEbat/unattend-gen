@@ -166,7 +166,7 @@ func (a Accessibility) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		case "ctrl+n":
 			a.sync()
-			return a, Navigate(ScreenScripts)
+			return a, Navigate(ScreenDesktop)
 		case "esc":
 			a.sync()
 			return a, Navigate(ScreenPersonalization)
