@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v21** (2026-09-05)
+**Версия: v22** (2026-09-05)
 
 Changelog:
+- v22 — слайс 20 (tech.md backlog group C, +4/9, суммарно 6/9 закрыто): новый файл `internal/xmlgen/components/startmenu.go` (Desktop Icons + Folders on Start), новый тип `Profile.DesktopIcons map[DesktopIcon]bool` + `Profile.StartFolders []StartFolder`, новый экран `screens.ScreenDesktop` между Accessibility и Scripts. Оба механизма впервые используют RunOnce (не default-user-hive-контент напрямую) для правки живого HKCU нового аккаунта — новый паттерн, задокументирован в 9.10. Замечен, но сознательно не взят в этот слайс: `DeleteEdgeDesktopIcon` (отдельный простой твик, в бэклоге).
 - v21 — слайс 19 (tech.md backlog group C, 2 из 9 пунктов): новый файл `internal/xmlgen/components/accessibility.go` (Sticky Keys + Lock Keys), новый тип `StickyKeysSettings`/`LockKeySettings`+`Profile.LockKeys *LockKeySettings`, новый экран `screens.ScreenAccessibility` между Personalization и Scripts. Оба механизма пишут в `HKU\DefaultUser` (будущие аккаунты) и `HKU\.DEFAULT` (текущая сессия/экран блокировки) параллельно. Раздел 3/4/7 обновлены, новый раздел 9.9.
 - v20 — слайс 18 (tech.md backlog group B, остаток — ЗАКРЫТА полностью): `SystemTweaks` 23→26, новые — `HardenSystemDriveACL`, `MakeEdgeUninstallable`, `DeleteWindowsOld`. Сигнатура `NewShellSetupOOBE` выросла ещё на один параметр (`deleteWindowsOld` — единственный из троицы, который живёт в FirstLogonCommands, а не в Deployment/specialize). Раздел 9.3 дополнен.
 - v19 — слайс 17 (tech.md backlog group A, largely closed): `RemovableApp` 32→42 (10 новых Appx + `AppOneDrive` через новый custom-механизм), `RemovableFeature` 7→11 (4 новых DISM capability), новый тип `RemovableOptionalFeature` (3 значения) + новый файл `optionalfeatures.go` — третий механизм удаления (`Disable-WindowsOptionalFeature`), закрывший Media Features/Recall/Remote Desktop Client. Побочный фикс: `FeatureSpeech` получил второй capability-селектор. Раздел 4/9.6 переписаны.
@@ -71,7 +72,7 @@ internal/
     app.go                           NewModel, Model (bubbletea), таблица screens.ID → tea.Model
     screens/
       welcome.go, language.go, accounts.go, tweaks.go, wifi.go,
-      apps.go, personalization.go, accessibility.go, scripts.go, review.go
+      apps.go, personalization.go, accessibility.go, desktop.go, scripts.go, review.go
       nav.go                         screens.ID, навигационные сообщения
     widgets/
       labeled_input.go, password_input.go, labeled_select.go,
@@ -92,6 +93,7 @@ internal/
       personalization.go             реестр в default-user hive (тема, акцентный цвет, обои)
       optimizations.go               SystemTweaks-твики со слайсов 16/18 (junctions, active-hours, sounds, ACL, Edge uninstallable и т.д.)
       accessibility.go               Sticky Keys + Lock Keys (default-user hive + HKU\.DEFAULT + Scancode Map)
+      startmenu.go                   Desktop Icons + Folders on Start (RunOnce → живой HKCU нового аккаунта)
     builder_*_test.go                по одному файлу тестов на каждый компонент/срез функциональности
 presets/
   presets.go                         go:embed, Names, Load(name)
@@ -161,6 +163,8 @@ type Profile struct {
 - `PersonalizationSettings{SystemTheme/AppsTheme: light|dark, AccentColor *string (RRGGBB), ShowAccentOnStartTaskbar/ShowAccentOnTitleBars/DisableTransparency bool, SolidColorWallpaper *string (RRGGBB)}` — только цвета; файл обоев и экран блокировки не входят (см. раздел 15, бэклог).
 - `StickyKeysSettings{Mode: default|disabled|custom (""=default), Flags []StickyKeysFlag}` (слайс 19) — `Flags` только при `Mode=custom`, 6 значений (`profile.StickyKeysFlags`).
 - `LockKeySettings{CapsLock/NumLock/ScrollLock: LockKeySetting{Initial: off|on, Behavior: toggle|ignore}}`, поле `Profile.LockKeys *LockKeySettings` (слайс 19) — `nil` = поведение Windows не трогается (как `SkipLockKeySettings` у сайта-эталона).
+- `Profile.DesktopIcons map[DesktopIcon]bool` (слайс 20) — 13 значений (`profile.DesktopIcons`); `nil`/пустая карта = поведение Windows не трогается; ключ есть = явно show(`true`)/hide(`false`), ключа нет = соответствующий значок не трогается (частичная карта допустима).
+- `Profile.StartFolders []StartFolder` (слайс 20) — 9 значений (`profile.StartFolders`); порядок в списке = порядок закрепления папок на Start; пустой список = не трогать (сознательное упрощение — «закрепить ровно ноль папок» этим полем не выразить, см. раздел 9.10).
 
 `profile.Default(name string) *Profile` — профиль по умолчанию, которым стартуют `profile init` без `--preset` и свежая TUI-сессия: `schema_version=1`, язык en-US/en-US/en-US, `Edition.Mode=interactive`, `Accounts=[]`, `FirstLogon.Mode=none`, `ExpressSettings.Mode=interactive`, всё остальное — нулевые значения.
 
@@ -220,11 +224,12 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 ## 7. TUI: экраны и виджеты (заморожен)
 
-Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Scripts → Review**.
+Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Desktop → Scripts → Review**.
 
 - Каждый экран — отдельный `tea.Model` в `internal/tui/screens/*.go`, общий `*profile.Profile` передаётся через `rebuildScreen` при каждой навигации, так экран всегда синхронизирован с последним состоянием.
 - `screens.ScreenApps` — совмещённый экран: чекбоксы удаляемых приложений (`RemoveApps`), удаляемых DISM-компонентов (`RemoveFeatures`) и удаляемых legacy optional features (`RemoveOptionalFeatures`, слайс 17) — три разных механизма, одна таблица фокуса (`internal/tui/screens/apps.go`, `checkboxAt`).
 - `screens.ScreenAccessibility` (слайс 19) — Sticky Keys (select + до 6 чекбоксов, только когда `mode=custom`) и Lock Keys (чекбокс «настраивать» + 6 select'ов, видны только если включён — `nil` `LockKeys` иначе, как на сайте-эталоне). Между Personalization и Scripts.
+- `screens.ScreenDesktop` (слайс 20) — видимость значков рабочего стола (мастер-чекбокс «настраивать»: выключен = `nil` `DesktopIcons`, включён = все 13 значков получают явный чекбокс) + закреплённые папки на Start (`StartFolders`, простой список без мастер-чекбокса — пустой список сам по себе уже значит «не трогать», доп. переключатель не нужен). Между Accessibility и Scripts.
 - `screens.ScreenTweaks` — самый нагруженный экран: express settings, 17 чекбоксов `SystemTweaks`, политика истечения пароля, политика блокировки аккаунта, настройки File Explorer. Число полей и индекс фокуса вычисляются динамически (условные блоки появляются только когда соответствующий Mode = custom).
 - `screens.ScreenAccounts` — также несёт `Timezone` и `BypassOnlineAccountRequirement`, не только таблицу аккаунтов.
 - Виджеты (`internal/tui/widgets/`), экраны не пишут свой ввод/таблицы напрямую:
@@ -341,6 +346,13 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
   - **Initial** (начальное состояние) — один decimal bitmask (Caps=1, Num=2, Scroll=4) в `InitialKeyboardIndicators` (REG_SZ) под `Control Panel\Keyboard`, тоже в оба места — `HKU\.DEFAULT` напрямую и `HKU\DefaultUser` через load/unload, одной комбинированной командой.
   - **Behavior=ignore** — бинарный `Scancode Map` (`HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout`, REG_BINARY, вступает в силу после перезагрузки): 4 байта Version(0) + 4 байта Flags(0) + 4 байта little-endian Count(N+1) + по 4 байта на каждую отображаемую клавишу (`[0x00,0x00,scancode_lo,scancode_hi]` — target=0x0000 отключает клавишу) + 4 байта нулевой терминатор. Scancode'ы клавиш: CapsLock=`0x3A`, NumLock=`0x45`, ScrollLock=`0x46`. Команда добавляется только если хотя бы одна клавиша имеет `Behavior=ignore` — если у всех `toggle`, второй команды нет вообще.
 
+### 9.10 Desktop Icons и Folders on Start (`startmenu.go`, слайс 20)
+
+Оба раздела отсутствовали в проекте полностью до слайса 20. В отличие от 9.8/9.9 (которые правят статичный контент default-user hive или всегда-смонтированный `HKU\.DEFAULT`), эти два таргетят **живой** `HKCU` только что созданного аккаунта — единственный способ применить это к будущим аккаунтам через наш стек — тот же RunOnce-механизм, что уже есть в `scripts.go` для `UserOnceScripts` (монтируем default-user hive **только чтобы** прописать RunOnce-запись, сама команда выполняется потом, в сессии нового аккаунта, и пишет прямо в его `HKCU`).
+
+- **Desktop Icons** — булева карта `DesktopIcons` (13 значений, GUID-ы взяты из `resource/DesktopIcon.json` эталона) пишется в ДВА подраздела `HideDesktopIcons` (`ClassicStartMenu` и `NewStartPanel` — Windows проверяет оба в зависимости от активного стиля меню Пуск) через RunOnce-обёрнутый `.cmd`-скрипт: `0` = показать, `1` = скрыть, только для ключей, реально присутствующих в карте. Скрипт завершается перезапуском `explorer.exe` (`taskkill /f /im explorer.exe && start explorer.exe`), иначе изменение не подхватится без выхода из сессии — как у эталона (`UserOnceScript.RestartExplorer()`).
+- **Folders on Start** (закреплённые папки у кнопки питания, Win11) — `StartFolders []StartFolder` (9 значений, 16-байтовые GUID взяты из `resource/StartFolder.json`, декодированы из base64 в hex-константы в коде) конкатенируются В ПОРЯДКЕ СПИСКА и пишутся одним REG_BINARY значением `VisiblePlaces` под `...\CurrentVersion\Start`, тоже через RunOnce/`.cmd`, без PowerShell (тот же hex-подход, что и Scancode Map в 9.9). Пустой список = не трогать (сознательное упрощение, задокументировано в исходном коде `StartFoldersUserOnceCommand`): выразить «закрепить ровно ноль папок» этим полем нельзя, только «оставить дефолт Windows».
+
 ---
 
 ## 10. Сборка и проверки (заморожен)
@@ -436,6 +448,8 @@ CONTRACT GAP
 
 - **19**: Sticky Keys + Lock Keys (tech.md backlog group C, 2 из 9 пунктов). Новый файл `internal/xmlgen/components/accessibility.go`, новый экран `screens.ScreenAccessibility` (между Personalization и Scripts). `StickyKeysSettings` (Mode + Flags) и `*LockKeySettings` (nil = не трогать) — оба механизма пишут одновременно в `HKU\DefaultUser` (для будущих аккаунтов) и `HKU\.DEFAULT` (для текущей сессии/экрана блокировки, без load/unload — этот куст всегда смонтирован). Lock Keys' `Behavior=ignore` строит бинарный Scancode Map с нуля (Go-реализация формата, побайтово сверена с C#-источником, покрыта тестом на конкретные hex-байты).
 
+- **20**: Desktop Icons + Folders on Start (tech.md backlog group C, 4 из 9 пунктов, суммарно с 19). Новый файл `internal/xmlgen/components/startmenu.go`, новый экран `screens.ScreenDesktop` (между Accessibility и Scripts). Оба механизма используют RunOnce (как `UserOnceScripts` в `scripts.go`), поскольку таргетят живой `HKCU` нового аккаунта, а не default-user hive. `Profile.DesktopIcons map[DesktopIcon]bool` (13 значений) и `Profile.StartFolders []StartFolder` (9 значений, GUID-байты из `resource/*.json` эталона, decode-once в hex-константы). Sознательное упрощение задокументировано: `StartFolders` не может выразить «закрепить ровно ноль папок».
+
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
 Источник: [schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/), commit `88d81f0`. Сверка сделана постранично, раздел за разделом сайта, против фактического кода (не только против старого текста этого файла — там нашлись расхождения, см. ниже).
@@ -451,11 +465,10 @@ CONTRACT GAP
 
 **Группа B — оставшиеся System tweaks — ЗАКРЫТА полностью в слайсе 18.**
 
-**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI). Lock keys/Sticky keys ЗАКРЫТЫ в слайсе 19, остальное открыто.**
-- **Start menu and taskbar** — самый крупный из отсутствующих разделов: режим отображения поля поиска в таскбаре, конфигурация закреплённых иконок таскбара через XML, отключение виджетов, left-align таскбара (Win11), скрытие кнопки Task View, «always show tray icons», отключение Bing-результатов в поиске, плитки Start (Win10) и pins (Win11) через XML/JSON.
+**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI). Lock keys/Sticky keys/Desktop icons/Folders on Start ЗАКРЫТЫ в слайсах 19–20, остальное открыто.**
+- **Start menu and taskbar** — самый крупный из отсутствующих разделов: режим отображения поля поиска в таскбаре, конфигурация закреплённых иконок таскбара через XML, отключение виджетов, left-align таскбара (Win11), скрытие кнопки Task View, «always show tray icons», отключение Bing-результатов в поиске, плитки Start (Win10) и pins (Win11) через XML/JSON — НЕ то же самое, что закрытые в слайсе 20 «Folders on Start» (папки у кнопки питания).
 - **Visual effects** — полный набор чекбоксов производительности/анимации (уже был в старом бэклоге под общим названием «визуальные эффекты»).
-- **Desktop icons** — какие иконки рабочего стола показывать (Компьютер/Корзина/Сеть и т.д.) + удаление ярлыка Edge.
-- **Folders on Start** — папки рядом с кнопкой питания в Start (Win11). Не был в старом бэклоге, новый пункт.
+- **Delete Edge desktop icon** (`DeleteEdgeDesktopIcon`) — замечен при реализации слайса 20 (соседний код в `Optimizations.cs`), но сознательно не взят в тот слайс: отдельный простой булев твик (2 `Remove-Item` — `C:\Users\Public\Desktop\Microsoft Edge.lnk` в specialize + `%USERPROFILE%\Desktop\Microsoft Edge.lnk` в UserOnce), не часть словаря видимости иконок. Дешёвый кандидат на следующий заход по System tweaks или Desktop icons.
 - **VM hosts: Core isolation toggle** — включить/выключить virtualization-based security. Отдельно от VM guest tools (ниже), не то же самое.
 - **VM guest tools** — установка VirtualBox Guest Additions / VMware Tools / VirtIO / Parallels Tools. Известный пункт.
 - **AppLocker policy** — известный пункт, готовый XML-шаблон с сайта можно взять за основу.

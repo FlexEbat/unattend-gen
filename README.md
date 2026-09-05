@@ -41,6 +41,8 @@ no matter how it was filled in.
 - Sticky Keys (default/disabled/custom) and lock key (Caps/Num/Scroll)
   initial state and behavior, applied both to future accounts and the
   current session/lock screen
+- Desktop icon visibility (This PC, Recycle Bin, and 11 more) and folders
+  pinned on the Start menu (Win11) — applied to every future account
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
