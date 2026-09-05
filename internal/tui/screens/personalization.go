@@ -109,7 +109,7 @@ func (s Personalization) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 		case "ctrl+n":
 			s.sync()
-			return s, Navigate(ScreenScripts)
+			return s, Navigate(ScreenAccessibility)
 		case "esc":
 			s.sync()
 			return s, Navigate(ScreenApps)

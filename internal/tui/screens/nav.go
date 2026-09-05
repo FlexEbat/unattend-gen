@@ -23,6 +23,7 @@ const (
 	ScreenWifi
 	ScreenApps
 	ScreenPersonalization
+	ScreenAccessibility
 	ScreenScripts
 	ScreenReview
 )
