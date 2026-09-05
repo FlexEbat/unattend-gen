@@ -353,6 +353,80 @@ type PersonalizationSettings struct {
 	SolidColorWallpaper *string `json:"solid_color_wallpaper"`
 }
 
+// StickyKeysFlag is one optional Sticky Keys (5x-Shift accessibility
+// feature) behavior a custom StickyKeysSettings can turn on. Slice 19
+// (tech.md backlog group C).
+type StickyKeysFlag string
+
+const (
+	StickyKeysHotKeyActive    StickyKeysFlag = "HotKeyActive"
+	StickyKeysIndicator       StickyKeysFlag = "Indicator"
+	StickyKeysTriState        StickyKeysFlag = "TriState"
+	StickyKeysTwoKeysOff      StickyKeysFlag = "TwoKeysOff"
+	StickyKeysAudibleFeedback StickyKeysFlag = "AudibleFeedback"
+	StickyKeysHotKeySound     StickyKeysFlag = "HotKeySound"
+)
+
+// StickyKeysFlags lists every valid StickyKeysSettings.Flags entry, in the
+// order shown in the TUI.
+var StickyKeysFlags = []StickyKeysFlag{
+	StickyKeysHotKeyActive, StickyKeysIndicator, StickyKeysTriState,
+	StickyKeysTwoKeysOff, StickyKeysAudibleFeedback, StickyKeysHotKeySound,
+}
+
+// StickyKeysMode selects how Sticky Keys behaves. "" behaves the same as
+// StickyKeysModeDefault (Windows' own default: on, activated by pressing
+// Shift five times).
+type StickyKeysMode string
+
+const (
+	StickyKeysModeDefault  StickyKeysMode = "default"
+	StickyKeysModeDisabled StickyKeysMode = "disabled"
+	StickyKeysModeCustom   StickyKeysMode = "custom"
+)
+
+// StickyKeysSettings configures Sticky Keys for both the account created
+// during setup and every future account. Zero value (Mode="") changes
+// nothing.
+type StickyKeysSettings struct {
+	Mode  StickyKeysMode   `json:"mode" validate:"omitempty,oneof=default disabled custom"`
+	Flags []StickyKeysFlag `json:"flags"` // only meaningful when Mode == custom
+}
+
+// LockKeyInitial is a lock key's (Caps/Num/Scroll Lock) state right after
+// Windows starts.
+type LockKeyInitial string
+
+const (
+	LockKeyOff LockKeyInitial = "off"
+	LockKeyOn  LockKeyInitial = "on"
+)
+
+// LockKeyBehavior is whether pressing a lock key toggles it normally, or
+// is ignored entirely (the key does nothing).
+type LockKeyBehavior string
+
+const (
+	LockKeyToggle LockKeyBehavior = "toggle"
+	LockKeyIgnore LockKeyBehavior = "ignore"
+)
+
+// LockKeySetting is one lock key's configuration.
+type LockKeySetting struct {
+	Initial  LockKeyInitial  `json:"initial" validate:"omitempty,oneof=off on"`
+	Behavior LockKeyBehavior `json:"behavior" validate:"omitempty,oneof=toggle ignore"`
+}
+
+// LockKeySettings configures Caps/Num/Scroll Lock's startup state and
+// whether pressing them does anything. A nil Profile.LockKeys means
+// Windows' own defaults apply untouched — matches the reference
+// implementation's SkipLockKeySettings.
+type LockKeySettings struct {
+	CapsLock   LockKeySetting `json:"caps_lock"`
+	NumLock    LockKeySetting `json:"num_lock"`
+	ScrollLock LockKeySetting `json:"scroll_lock"`
+}
+
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
 	SchemaVersion                  int                        `json:"schema_version" validate:"required,eq=1"`
@@ -374,6 +448,8 @@ type Profile struct {
 	AccountLockout                 AccountLockoutSettings     `json:"account_lockout"`
 	FileExplorer                   FileExplorerSettings       `json:"file_explorer"`
 	Personalization                PersonalizationSettings    `json:"personalization"`
+	StickyKeys                     StickyKeysSettings         `json:"sticky_keys"`
+	LockKeys                       *LockKeySettings           `json:"lock_keys"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`
