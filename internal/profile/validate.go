@@ -59,6 +59,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validatePersonalization(p.Personalization)...)
 	errs = append(errs, validatePasswordExpiration(p.PasswordExpiration)...)
 	errs = append(errs, validateAccountLockout(p.AccountLockout)...)
+	errs = append(errs, validateStickyKeys(p.StickyKeys)...)
 
 	if len(errs) > 0 {
 		return ValidationResult{Errors: errs}
@@ -287,6 +288,26 @@ func validatePersonalization(s PersonalizationSettings) []string {
 	}
 	if s.SolidColorWallpaper != nil && !hexColorRe.MatchString(*s.SolidColorWallpaper) {
 		errs = append(errs, "solid_color_wallpaper должен быть 6 hex-цифрами, например 0078D4")
+	}
+	return errs
+}
+
+func validateStickyKeys(s StickyKeysSettings) []string {
+	if s.Mode != StickyKeysModeCustom {
+		return nil
+	}
+	var errs []string
+	for _, f := range s.Flags {
+		known := false
+		for _, allowed := range StickyKeysFlags {
+			if f == allowed {
+				known = true
+				break
+			}
+		}
+		if !known {
+			errs = append(errs, "Неизвестный флаг Sticky Keys: "+string(f))
+		}
 	}
 	return errs
 }

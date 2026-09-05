@@ -97,7 +97,7 @@ type Deployment struct {
 // DefaultUser scripts and the UserOnce RunOnce registration (in that
 // order). Returns nil when none are set: an empty component is not
 // emitted.
-func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
+func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
 	enabledCommands := []struct {
 		enabled bool
 		command string
@@ -164,6 +164,18 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
 	if cmd := PersonalizationCommand(personalization); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := StickyKeysDefaultUserCommand(stickyKeys); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := StickyKeysSystemDefaultCommand(stickyKeys); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := LockKeyIndicatorsCommand(lockKeys); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := LockKeyScancodeMapCommand(lockKeys); cmd != "" {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
 	for _, cmd := range SystemScriptsCommands(systemScripts) {
