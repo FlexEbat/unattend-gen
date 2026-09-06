@@ -41,6 +41,7 @@ func NewModel(initial *profile.Profile) Model {
 			screens.ScreenPersonalization: screens.NewPersonalization(initial),
 			screens.ScreenAccessibility:   screens.NewAccessibility(initial),
 			screens.ScreenDesktop:         screens.NewDesktop(initial),
+			screens.ScreenAdvanced:        screens.NewAdvanced(initial),
 			screens.ScreenScripts:         screens.NewScripts(initial),
 			screens.ScreenReview:          screens.NewReview(initial),
 		},
