@@ -108,6 +108,8 @@ type SystemTweaks struct {
 	HardenSystemDriveACL  bool `json:"harden_system_drive_acl"`
 	MakeEdgeUninstallable bool `json:"make_edge_uninstallable"`
 	DeleteWindowsOld      bool `json:"delete_windows_old"`
+	// Slice 21 (tech.md backlog group C).
+	DisableCoreIsolation bool `json:"disable_core_isolation"`
 }
 
 // WifiAuthentication is the authentication type of a pre-configured Wi-Fi profile.
@@ -480,6 +482,24 @@ var StartFolders = []StartFolder{
 	StartFolderVideos, StartFolderNetwork, StartFolderPersonalFolder,
 }
 
+// VMGuestTool is a virtualization guest-tools silent installer xmlgen
+// knows how to run at first logon. Slice 21 (tech.md backlog group C).
+type VMGuestTool string
+
+const (
+	VMGuestToolVBoxGuestAdditions VMGuestTool = "VBoxGuestAdditions"
+	VMGuestToolVMwareTools        VMGuestTool = "VMwareTools"
+	VMGuestToolVirtIOGuestTools   VMGuestTool = "VirtIoGuestTools"
+	VMGuestToolParallelsTools     VMGuestTool = "ParallelsTools"
+)
+
+// VMGuestTools lists every valid Profile.InstallVMGuestTools entry, in the
+// order shown in the TUI.
+var VMGuestTools = []VMGuestTool{
+	VMGuestToolVBoxGuestAdditions, VMGuestToolVMwareTools,
+	VMGuestToolVirtIOGuestTools, VMGuestToolParallelsTools,
+}
+
 // Profile is the full set of answer-file settings the CLI and TUI operate on.
 type Profile struct {
 	SchemaVersion                  int                        `json:"schema_version" validate:"required,eq=1"`
@@ -505,6 +525,8 @@ type Profile struct {
 	LockKeys                       *LockKeySettings           `json:"lock_keys"`
 	DesktopIcons                   map[DesktopIcon]bool       `json:"desktop_icons"`
 	StartFolders                   []StartFolder              `json:"start_folders"`
+	InstallVMGuestTools            []VMGuestTool              `json:"install_vm_guest_tools"`
+	AppLockerPolicyXML             *string                    `json:"applocker_policy_xml"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`

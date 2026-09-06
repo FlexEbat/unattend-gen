@@ -60,12 +60,12 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.Timezone); shellSpecialize != nil {
 		specialize = append(specialize, shellSpecialize)
 	}
-	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.StickyKeys, p.LockKeys, p.DesktopIcons, p.StartFolders, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
+	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.StickyKeys, p.LockKeys, p.DesktopIcons, p.StartFolders, p.AppLockerPolicyXML, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
 		specialize = append(specialize, deployment)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
-	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps, p.RemoveFeatures, p.RemoveOptionalFeatures, p.SystemTweaks.DeleteHiddenJunctions, p.SystemTweaks.DeleteWindowsOld, p.FirstLogonScripts, p.RestartExplorerAfterScripts); shellOOBE != nil {
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps, p.RemoveFeatures, p.RemoveOptionalFeatures, p.SystemTweaks.DeleteHiddenJunctions, p.SystemTweaks.DeleteWindowsOld, p.InstallVMGuestTools, p.FirstLogonScripts, p.RestartExplorerAfterScripts); shellOOBE != nil {
 		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
 	}
 

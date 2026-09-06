@@ -2,6 +2,9 @@ package profile
 
 import (
 	"encoding/json"
+	"encoding/xml"
+	"errors"
+	"io"
 	"regexp"
 	"strings"
 
@@ -62,6 +65,8 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateStickyKeys(p.StickyKeys)...)
 	errs = append(errs, validateDesktopIcons(p.DesktopIcons)...)
 	errs = append(errs, validateStartFolders(p.StartFolders)...)
+	errs = append(errs, validateInstallVMGuestTools(p.InstallVMGuestTools)...)
+	errs = append(errs, validateAppLockerPolicyXML(p.AppLockerPolicyXML)...)
 
 	if len(errs) > 0 {
 		return ValidationResult{Errors: errs}
@@ -346,4 +351,41 @@ func validateStartFolders(folders []StartFolder) []string {
 		}
 	}
 	return errs
+}
+
+func validateInstallVMGuestTools(tools []VMGuestTool) []string {
+	var errs []string
+	for _, t := range tools {
+		known := false
+		for _, allowed := range VMGuestTools {
+			if t == allowed {
+				known = true
+				break
+			}
+		}
+		if !known {
+			errs = append(errs, "Неизвестный набор гостевых дополнений ВМ: "+string(t))
+		}
+	}
+	return errs
+}
+
+func validateAppLockerPolicyXML(policyXML *string) []string {
+	if policyXML == nil {
+		return nil
+	}
+	if strings.TrimSpace(*policyXML) == "" {
+		return []string{"applocker_policy_xml не может быть пустой строкой (используйте null)"}
+	}
+	dec := xml.NewDecoder(strings.NewReader(*policyXML))
+	for {
+		_, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return []string{"applocker_policy_xml не является валидным XML: " + err.Error()}
+		}
+	}
+	return nil
 }

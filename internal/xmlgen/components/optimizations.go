@@ -301,3 +301,8 @@ func MakeEdgeUninstallableCommand() string {
 		invokeCommand(profile.ScriptPs1, path),
 	})
 }
+
+// disableCoreIsolationCommand disables virtualization-based security
+// (Memory Integrity / Core Isolation) — required by some VM guests and
+// older drivers that don't support it. Slice 21 (tech.md backlog group C).
+const disableCoreIsolationCommand = `cmd.exe /c reg add "HKLM\System\CurrentControlSet\Control\DeviceGuard" /v "EnableVirtualizationBasedSecurity" /t REG_DWORD /d 0 /f && reg add "HKLM\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "Enabled" /t REG_DWORD /d 0 /f && reg add "HKLM\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "EnabledBootId" /t REG_DWORD /d 0 /f && reg add "HKLM\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "WasEnabledBy" /t REG_DWORD /d 0 /f`
