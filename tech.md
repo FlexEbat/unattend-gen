@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v22** (2026-09-05)
+**Версия: v23** (2026-09-06)
 
 Changelog:
+- v23 — слайс 21 (tech.md backlog group C, +3/9, ЗАКРЫТА ПОЛНОСТЬЮ 9/9): новый файл `internal/xmlgen/components/vmapplocker.go` (VM guest tools + AppLocker), новый тип `Profile.InstallVMGuestTools []VMGuestTool` + `Profile.AppLockerPolicyXML *string`, `SystemTweaks.DisableCoreIsolation` (27-е поле), новый экран `screens.ScreenAdvanced` между Desktop и Scripts. AppLocker валидируется только на well-formedness XML, без XSD-схемы (сознательное упрощение, задокументировано в 9.11). Замечено, но не взято: `TaskbarAl`/left-align таскбара (простой reg add, в бэклоге группы Start menu/taskbar).
 - v22 — слайс 20 (tech.md backlog group C, +4/9, суммарно 6/9 закрыто): новый файл `internal/xmlgen/components/startmenu.go` (Desktop Icons + Folders on Start), новый тип `Profile.DesktopIcons map[DesktopIcon]bool` + `Profile.StartFolders []StartFolder`, новый экран `screens.ScreenDesktop` между Accessibility и Scripts. Оба механизма впервые используют RunOnce (не default-user-hive-контент напрямую) для правки живого HKCU нового аккаунта — новый паттерн, задокументирован в 9.10. Замечен, но сознательно не взят в этот слайс: `DeleteEdgeDesktopIcon` (отдельный простой твик, в бэклоге).
 - v21 — слайс 19 (tech.md backlog group C, 2 из 9 пунктов): новый файл `internal/xmlgen/components/accessibility.go` (Sticky Keys + Lock Keys), новый тип `StickyKeysSettings`/`LockKeySettings`+`Profile.LockKeys *LockKeySettings`, новый экран `screens.ScreenAccessibility` между Personalization и Scripts. Оба механизма пишут в `HKU\DefaultUser` (будущие аккаунты) и `HKU\.DEFAULT` (текущая сессия/экран блокировки) параллельно. Раздел 3/4/7 обновлены, новый раздел 9.9.
 - v20 — слайс 18 (tech.md backlog group B, остаток — ЗАКРЫТА полностью): `SystemTweaks` 23→26, новые — `HardenSystemDriveACL`, `MakeEdgeUninstallable`, `DeleteWindowsOld`. Сигнатура `NewShellSetupOOBE` выросла ещё на один параметр (`deleteWindowsOld` — единственный из троицы, который живёт в FirstLogonCommands, а не в Deployment/specialize). Раздел 9.3 дополнен.
@@ -72,7 +73,7 @@ internal/
     app.go                           NewModel, Model (bubbletea), таблица screens.ID → tea.Model
     screens/
       welcome.go, language.go, accounts.go, tweaks.go, wifi.go,
-      apps.go, personalization.go, accessibility.go, desktop.go, scripts.go, review.go
+      apps.go, personalization.go, accessibility.go, desktop.go, advanced.go, scripts.go, review.go
       nav.go                         screens.ID, навигационные сообщения
     widgets/
       labeled_input.go, password_input.go, labeled_select.go,
@@ -94,6 +95,7 @@ internal/
       optimizations.go               SystemTweaks-твики со слайсов 16/18 (junctions, active-hours, sounds, ACL, Edge uninstallable и т.д.)
       accessibility.go               Sticky Keys + Lock Keys (default-user hive + HKU\.DEFAULT + Scancode Map)
       startmenu.go                   Desktop Icons + Folders on Start (RunOnce → живой HKCU нового аккаунта)
+      vmapplocker.go                 VM guest tools (4 ps1-скрипта) + AppLocker (Set-AppLockerPolicy)
     builder_*_test.go                по одному файлу тестов на каждый компонент/срез функциональности
 presets/
   presets.go                         go:embed, Names, Load(name)
@@ -151,7 +153,7 @@ type Profile struct {
 - `UserAccount{Name string (≤20), DisplayName *string, Password *string (nil=без пароля, "" запрещено), Group: Administrators|Users}`.
 - `FirstLogon{Mode: first_created_account|builtin_administrator|none, BuiltinAdministratorPassword *string}`.
 - `ExpressSettings{Mode: all_disabled|all_enabled|interactive}`.
-- `SystemTweaks` — 26 булевых полей (17 из слайса 8 + 6 из слайса 16 + 3 из слайса 18, см. раздел 9.3), все опциональны, zero value = ничего не меняется.
+- `SystemTweaks` — 27 булевых полей (17 из слайса 8 + 6 из слайса 16 + 3 из слайса 18 + 1 из слайса 21, см. раздел 9.3), все опциональны, zero value = ничего не меняется.
 - `WifiSettings{SSID (≤32), Authentication: Open|WPA2Personal|WPA3Personal, Password *string, ConnectHidden bool}`.
 - `RemovableApp` — строковый enum, 42 значения (31 из слайса 9 + 10 простых из слайса 17 + `OneDrive`, у которого другой механизм, см. раздел 9.6; список — `profile.RemovableApps`, порядок = порядок в TUI).
 - `RemovableFeature` — строковый enum, 11 значений (`profile.RemovableFeatures`): InternetExplorer, WordPad, PowerShellISE, OpenSSHClient, MediaPlayer, Speech, Handwriting (слайс 11) + WindowsHello, MathInputPanel, OneSync, StepsRecorder (слайс 17).
@@ -165,6 +167,8 @@ type Profile struct {
 - `LockKeySettings{CapsLock/NumLock/ScrollLock: LockKeySetting{Initial: off|on, Behavior: toggle|ignore}}`, поле `Profile.LockKeys *LockKeySettings` (слайс 19) — `nil` = поведение Windows не трогается (как `SkipLockKeySettings` у сайта-эталона).
 - `Profile.DesktopIcons map[DesktopIcon]bool` (слайс 20) — 13 значений (`profile.DesktopIcons`); `nil`/пустая карта = поведение Windows не трогается; ключ есть = явно show(`true`)/hide(`false`), ключа нет = соответствующий значок не трогается (частичная карта допустима).
 - `Profile.StartFolders []StartFolder` (слайс 20) — 9 значений (`profile.StartFolders`); порядок в списке = порядок закрепления папок на Start; пустой список = не трогать (сознательное упрощение — «закрепить ровно ноль папок» этим полем не выразить, см. раздел 9.10).
+- `Profile.InstallVMGuestTools []VMGuestTool` (слайс 21) — 4 значения (`profile.VMGuestTools`): VBoxGuestAdditions, VMwareTools, VirtIoGuestTools, ParallelsTools.
+- `Profile.AppLockerPolicyXML *string` (слайс 21) — `nil` = не настраивать; сырой XML политики AppLocker, валидируется только на well-formedness (без XSD-схемы, см. раздел 9.11).
 
 `profile.Default(name string) *Profile` — профиль по умолчанию, которым стартуют `profile init` без `--preset` и свежая TUI-сессия: `schema_version=1`, язык en-US/en-US/en-US, `Edition.Mode=interactive`, `Accounts=[]`, `FirstLogon.Mode=none`, `ExpressSettings.Mode=interactive`, всё остальное — нулевые значения.
 
@@ -224,12 +228,13 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 ## 7. TUI: экраны и виджеты (заморожен)
 
-Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Desktop → Scripts → Review**.
+Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Desktop → Advanced → Scripts → Review**.
 
 - Каждый экран — отдельный `tea.Model` в `internal/tui/screens/*.go`, общий `*profile.Profile` передаётся через `rebuildScreen` при каждой навигации, так экран всегда синхронизирован с последним состоянием.
 - `screens.ScreenApps` — совмещённый экран: чекбоксы удаляемых приложений (`RemoveApps`), удаляемых DISM-компонентов (`RemoveFeatures`) и удаляемых legacy optional features (`RemoveOptionalFeatures`, слайс 17) — три разных механизма, одна таблица фокуса (`internal/tui/screens/apps.go`, `checkboxAt`).
 - `screens.ScreenAccessibility` (слайс 19) — Sticky Keys (select + до 6 чекбоксов, только когда `mode=custom`) и Lock Keys (чекбокс «настраивать» + 6 select'ов, видны только если включён — `nil` `LockKeys` иначе, как на сайте-эталоне). Между Personalization и Scripts.
 - `screens.ScreenDesktop` (слайс 20) — видимость значков рабочего стола (мастер-чекбокс «настраивать»: выключен = `nil` `DesktopIcons`, включён = все 13 значков получают явный чекбокс) + закреплённые папки на Start (`StartFolders`, простой список без мастер-чекбокса — пустой список сам по себе уже значит «не трогать», доп. переключатель не нужен). Между Accessibility и Scripts.
+- `screens.ScreenAdvanced` (слайс 21) — чекбоксы 4 наборов гостевых дополнений ВМ (`InstallVMGuestTools`) + `widgets.LabeledTextArea` для сырого AppLocker policy XML (пусто = `nil`, как везде в проекте). Между Desktop и Scripts.
 - `screens.ScreenTweaks` — самый нагруженный экран: express settings, 17 чекбоксов `SystemTweaks`, политика истечения пароля, политика блокировки аккаунта, настройки File Explorer. Число полей и индекс фокуса вычисляются динамически (условные блоки появляются только когда соответствующий Mode = custom).
 - `screens.ScreenAccounts` — также несёт `Timezone` и `BypassOnlineAccountRequirement`, не только таблицу аккаунтов.
 - Виджеты (`internal/tui/widgets/`), экраны не пишут свой ввод/таблицы напрямую:
@@ -291,7 +296,7 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 Каждый флаг `SystemTweaks` — одна или несколько команд в общем списке `RunSynchronousCommand` этого компонента (тот же компонент несёт также команды из `PasswordExpiration`/`AccountLockout`/скриптов System и DefaultUser):
 
-Простые (одна reg.exe-команда): `DisableWindowsUpdate`, `DisableUAC`, `BypassWin11Requirements` (единственный tweak через `Microsoft-Windows-Setup/RunSynchronous` в windowsPE, а не Deployment/specialize — раньше в загрузке), `DisableSmartAppControl`, `DisableSmartScreen`, `DisableFastStartup`, `DisableSystemRestore`, `EnableLongPaths`, `EnableRemoteDesktop`, `AllowPowerShellScripts`, `DisableLastAccessTimestamp`, `PreventDeviceEncryption`, `DisableAutoSignOnLastUser`, `DisableWPBT`, `AuditProcessCreation`, `HideEdgeFirstRun`, `DisableEdgeStartupBoost`, `PreventDeviceApps` (слайс 16), `HardenSystemDriveACL` (слайс 18, `icacls.exe C:\ /remove:g "*S-1-5-11"`, снимает права Authenticated Users на корень системного диска).
+Простые (одна reg.exe-команда): `DisableWindowsUpdate`, `DisableUAC`, `BypassWin11Requirements` (единственный tweak через `Microsoft-Windows-Setup/RunSynchronous` в windowsPE, а не Deployment/specialize — раньше в загрузке), `DisableSmartAppControl`, `DisableSmartScreen`, `DisableFastStartup`, `DisableSystemRestore`, `EnableLongPaths`, `EnableRemoteDesktop`, `AllowPowerShellScripts`, `DisableLastAccessTimestamp`, `PreventDeviceEncryption`, `DisableAutoSignOnLastUser`, `DisableWPBT`, `AuditProcessCreation`, `HideEdgeFirstRun`, `DisableEdgeStartupBoost`, `PreventDeviceApps` (слайс 16), `HardenSystemDriveACL` (слайс 18, `icacls.exe C:\ /remove:g "*S-1-5-11"`, снимает права Authenticated Users на корень системного диска), `DisableCoreIsolation` (слайс 21, 4 reg add на `DeviceGuard`/`HypervisorEnforcedCodeIntegrity` — отключает Memory Integrity/virtualization-based security, нужно некоторым гостевым ОС и старым драйверам).
 
 Составные (slice 16, `internal/xmlgen/components/optimizations.go`, механизмы сверены с исходником github.com/cschneegans/unattend-generator, `modifier/Optimizations.cs`, не по памяти):
 
@@ -352,6 +357,11 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 - **Desktop Icons** — булева карта `DesktopIcons` (13 значений, GUID-ы взяты из `resource/DesktopIcon.json` эталона) пишется в ДВА подраздела `HideDesktopIcons` (`ClassicStartMenu` и `NewStartPanel` — Windows проверяет оба в зависимости от активного стиля меню Пуск) через RunOnce-обёрнутый `.cmd`-скрипт: `0` = показать, `1` = скрыть, только для ключей, реально присутствующих в карте. Скрипт завершается перезапуском `explorer.exe` (`taskkill /f /im explorer.exe && start explorer.exe`), иначе изменение не подхватится без выхода из сессии — как у эталона (`UserOnceScript.RestartExplorer()`).
 - **Folders on Start** (закреплённые папки у кнопки питания, Win11) — `StartFolders []StartFolder` (9 значений, 16-байтовые GUID взяты из `resource/StartFolder.json`, декодированы из base64 в hex-константы в коде) конкатенируются В ПОРЯДКЕ СПИСКА и пишутся одним REG_BINARY значением `VisiblePlaces` под `...\CurrentVersion\Start`, тоже через RunOnce/`.cmd`, без PowerShell (тот же hex-подход, что и Scancode Map в 9.9). Пустой список = не трогать (сознательное упрощение, задокументировано в исходном коде `StartFoldersUserOnceCommand`): выразить «закрепить ровно ноль папок» этим полем нельзя, только «оставить дефолт Windows».
+
+### 9.11 VM guest tools и AppLocker (`vmapplocker.go`, слайс 21)
+
+- **VM guest tools** — `InstallVMGuestTools []VMGuestTool` (4 значения). Каждый инструмент — отдельная `FirstLogonCommands`-команда (не объединены в одну, как Wi-Fi/apps/features — если ISO одного гостевого пакета не примонтирован, это не должно мешать остальным). Содержимое всех 4 ps1-скриптов скопировано дословно из `resource/*.ps1` эталона: каждый перебирает буквы дисков D-Z в поисках своего инсталлятора на примонтированном ISO и молча завершается с сообщением, если ISO не подключён — это единственный способ найти гостевые дополнения, т.к. буква диска CD-привода не предсказуема заранее. Сознательное упрощение: у эталона VBox/VMware/Parallels (но не VirtIO — тот всегда идёт через FirstLogon) запускаются в specialize вместо FirstLogon, если у пользователя отключён Defender (`IsDefenderDisabled`) — в проекте нет эквивалентного сигнала «Defender отключён», поэтому все 4 инструмента всегда идут через FirstLogonCommands (это и есть собственный fallback-путь эталона, не отклонение от него).
+- **AppLocker** — `AppLockerPolicyXML *string`, `nil` = не настраивать. Заданный XML встраивается как файл (как пользовательские скрипты) и применяется в specialize: сперва `Get-Service AppIDSvc | Set-Service -StartupType Automatic` + `Start-Service` (без этой службы AppLocker молча не работает), затем `Set-AppLockerPolicy -XmlPolicy`. Валидация (`profile.ValidateProfile`) проверяет только well-formedness XML через `encoding/xml` — полной проверки по XSD-схеме AppLocker (как у эталона, `Util.ValidateAgainstSchema`) в проекте нет: в стандартной библиотеке Go нет XSD-валидатора, а тащить его отдельной зависимостью ради одного поля сочли неоправданным для этого слайса. Синтаксически кривая, но «не-XML-невалидная» политика будет обнаружена только на целевой машине при ошибке `Set-AppLockerPolicy`.
 
 ---
 
@@ -449,6 +459,7 @@ CONTRACT GAP
 - **19**: Sticky Keys + Lock Keys (tech.md backlog group C, 2 из 9 пунктов). Новый файл `internal/xmlgen/components/accessibility.go`, новый экран `screens.ScreenAccessibility` (между Personalization и Scripts). `StickyKeysSettings` (Mode + Flags) и `*LockKeySettings` (nil = не трогать) — оба механизма пишут одновременно в `HKU\DefaultUser` (для будущих аккаунтов) и `HKU\.DEFAULT` (для текущей сессии/экрана блокировки, без load/unload — этот куст всегда смонтирован). Lock Keys' `Behavior=ignore` строит бинарный Scancode Map с нуля (Go-реализация формата, побайтово сверена с C#-источником, покрыта тестом на конкретные hex-байты).
 
 - **20**: Desktop Icons + Folders on Start (tech.md backlog group C, 4 из 9 пунктов, суммарно с 19). Новый файл `internal/xmlgen/components/startmenu.go`, новый экран `screens.ScreenDesktop` (между Accessibility и Scripts). Оба механизма используют RunOnce (как `UserOnceScripts` в `scripts.go`), поскольку таргетят живой `HKCU` нового аккаунта, а не default-user hive. `Profile.DesktopIcons map[DesktopIcon]bool` (13 значений) и `Profile.StartFolders []StartFolder` (9 значений, GUID-байты из `resource/*.json` эталона, decode-once в hex-константы). Sознательное упрощение задокументировано: `StartFolders` не может выразить «закрепить ровно ноль папок».
+- **21**: AppLocker + VM guest tools + `DisableCoreIsolation` (tech.md backlog group C, +3/9, 9/9 закрыта полностью). Новый файл `internal/xmlgen/components/vmapplocker.go`, новый экран `screens.ScreenAdvanced` (между Desktop и Scripts). `InstallVMGuestTools []VMGuestTool` (4 ps1-скрипта дословно из эталона, каждый — отдельная FirstLogonCommand), `AppLockerPolicyXML *string` (raw XML, only well-formedness validated, не XSD), `SystemTweaks.DisableCoreIsolation` (27-й твик). Group C бэклога закрыта полностью.
 
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
@@ -465,13 +476,10 @@ CONTRACT GAP
 
 **Группа B — оставшиеся System tweaks — ЗАКРЫТА полностью в слайсе 18.**
 
-**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI). Lock keys/Sticky keys/Desktop icons/Folders on Start ЗАКРЫТЫ в слайсах 19–20, остальное открыто.**
-- **Start menu and taskbar** — самый крупный из отсутствующих разделов: режим отображения поля поиска в таскбаре, конфигурация закреплённых иконок таскбара через XML, отключение виджетов, left-align таскбара (Win11), скрытие кнопки Task View, «always show tray icons», отключение Bing-результатов в поиске, плитки Start (Win10) и pins (Win11) через XML/JSON — НЕ то же самое, что закрытые в слайсе 20 «Folders on Start» (папки у кнопки питания).
+**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI). ЗАКРЫТА ПОЛНОСТЬЮ в слайсах 19–21 (Lock keys, Sticky keys, Desktop icons, Folders on Start, VM guest tools, VM host core isolation, AppLocker). Start menu/taskbar и Visual effects были заявлены отдельно от исходного 9-пунктового списка группы — остаются открытыми ниже.**
+- **Start menu and taskbar** — самый крупный из отсутствующих разделов: режим отображения поля поиска в таскбаре, конфигурация закреплённых иконок таскбара через XML, отключение виджетов, left-align таскбара (Win11, простой reg add `TaskbarAl=0` в default-user hive — замечен рядом с VM tools кодом в слайсе 21, дешёвый кандидат), скрытие кнопки Task View, «always show tray icons», отключение Bing-результатов в поиске, плитки Start (Win10) и pins (Win11) через XML/JSON — НЕ то же самое, что закрытые в слайсе 20 «Folders on Start» (папки у кнопки питания).
 - **Visual effects** — полный набор чекбоксов производительности/анимации (уже был в старом бэклоге под общим названием «визуальные эффекты»).
 - **Delete Edge desktop icon** (`DeleteEdgeDesktopIcon`) — замечен при реализации слайса 20 (соседний код в `Optimizations.cs`), но сознательно не взят в тот слайс: отдельный простой булев твик (2 `Remove-Item` — `C:\Users\Public\Desktop\Microsoft Edge.lnk` в specialize + `%USERPROFILE%\Desktop\Microsoft Edge.lnk` в UserOnce), не часть словаря видимости иконок. Дешёвый кандидат на следующий заход по System tweaks или Desktop icons.
-- **VM hosts: Core isolation toggle** — включить/выключить virtualization-based security. Отдельно от VM guest tools (ниже), не то же самое.
-- **VM guest tools** — установка VirtualBox Guest Additions / VMware Tools / VirtIO / Parallels Tools. Известный пункт.
-- **AppLocker policy** — известный пункт, готовый XML-шаблон с сайта можно взять за основу.
 
 **Группа D — Windows PE / установка образа (другой pass, другая часть жизненного цикла).**
 Не было в старом бэклоге вообще, обнаружено при этом аудите:
