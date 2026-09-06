@@ -25,6 +25,7 @@ const (
 	ScreenPersonalization
 	ScreenAccessibility
 	ScreenDesktop
+	ScreenAdvanced
 	ScreenScripts
 	ScreenReview
 )

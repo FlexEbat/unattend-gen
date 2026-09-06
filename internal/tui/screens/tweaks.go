@@ -64,9 +64,10 @@ var tweakLabels = [tweaksCount]string{
 	"Harden system drive ACL (remove Authenticated Users write access)",
 	"Make Edge uninstallable",
 	"Delete C:\\Windows.old",
+	"Disable Core Isolation (Memory Integrity)",
 }
 
-const tweaksCount = 26
+const tweaksCount = 27
 
 // Tweaks is the express settings / system tweaks / account policy screen.
 type Tweaks struct {
@@ -180,6 +181,7 @@ func tweaksToValues(tw profile.SystemTweaks) [tweaksCount]bool {
 		tw.HardenSystemDriveACL,
 		tw.MakeEdgeUninstallable,
 		tw.DeleteWindowsOld,
+		tw.DisableCoreIsolation,
 	}
 }
 
@@ -211,6 +213,7 @@ func valuesToTweaks(v [tweaksCount]bool) profile.SystemTweaks {
 		HardenSystemDriveACL:       v[23],
 		MakeEdgeUninstallable:      v[24],
 		DeleteWindowsOld:           v[25],
+		DisableCoreIsolation:       v[26],
 	}
 }
 
