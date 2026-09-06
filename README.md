@@ -43,6 +43,8 @@ no matter how it was filled in.
   current session/lock screen
 - Desktop icon visibility (This PC, Recycle Bin, and 11 more) and folders
   pinned on the Start menu (Win11) — applied to every future account
+- VM guest tools auto-install (VirtualBox, VMware, VirtIO, Parallels) and
+  raw AppLocker policy XML
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
