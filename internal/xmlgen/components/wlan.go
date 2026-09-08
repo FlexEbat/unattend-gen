@@ -19,12 +19,18 @@ import (
 
 // WifiFirstLogonCommand returns the single command line that provisions
 // wifi as a real Windows WLAN profile. It returns "" when wifi is nil, so
-// callers can skip adding a FirstLogonCommands entry entirely.
+// callers can skip adding a FirstLogonCommands entry entirely. If
+// wifi.RawProfileXML is set (slice 22), it is embedded verbatim instead of
+// building the profile from SSID/Authentication/Password/ConnectHidden.
 func WifiFirstLogonCommand(wifi *profile.WifiSettings) string {
 	if wifi == nil {
 		return ""
 	}
-	encoded := base64.StdEncoding.EncodeToString([]byte(wlanProfileXML(wifi)))
+	xmlContent := wlanProfileXML(wifi)
+	if wifi.RawProfileXML != nil {
+		xmlContent = *wifi.RawProfileXML
+	}
+	encoded := base64.StdEncoding.EncodeToString([]byte(xmlContent))
 	return fmt.Sprintf(
 		`powershell -NoProfile -Command "[IO.File]::WriteAllBytes('$env:TEMP\wifi-profile.xml',[Convert]::FromBase64String('%s'));netsh wlan add profile filename=\"$env:TEMP\wifi-profile.xml\" user=all"`,
 		encoded,

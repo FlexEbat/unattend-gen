@@ -1,7 +1,10 @@
 package components
 
 import (
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/xml"
+	"unicode/utf16"
 
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 )
@@ -27,15 +30,21 @@ type ShellSetupSpecialize struct {
 // NewShellSetupSpecialize builds the specialize-pass component from the
 // computer name and time zone. Returns nil when both are nil: Windows
 // generates a random name and determines the time zone itself.
-func NewShellSetupSpecialize(computerName, timezone *string) *ShellSetupSpecialize {
-	if computerName == nil && timezone == nil {
+// computerNameScript (slice 22), when set, overrides computerName with the
+// "TEMPNAME" placeholder — ComputerNameScriptCommand overwrites it moments
+// later at runtime; mutual exclusivity with computerName is enforced in
+// validate.go.
+func NewShellSetupSpecialize(computerName, timezone, computerNameScript *string) *ShellSetupSpecialize {
+	if computerName == nil && timezone == nil && computerNameScript == nil {
 		return nil
 	}
 	s := &ShellSetupSpecialize{
 		Name:          shellSetupName,
 		standardAttrs: newStandardAttrs(),
 	}
-	if computerName != nil {
+	if computerNameScript != nil {
+		s.ComputerName = "TEMPNAME"
+	} else if computerName != nil {
 		s.ComputerName = *computerName
 	}
 	if timezone != nil {
@@ -97,7 +106,7 @@ type Deployment struct {
 // DefaultUser scripts and the UserOnce RunOnce registration (in that
 // order). Returns nil when none are set: an empty component is not
 // emitted.
-func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
+func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, useNarrator bool, computerNameScript *string, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
 	enabledCommands := []struct {
 		enabled bool
 		command string
@@ -188,6 +197,13 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 	if cmd := AppLockerCommand(appLockerPolicyXML); cmd != "" {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
+	if useNarrator {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, NarratorSpecializeCommand()))
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, NarratorUserOnceCommand()))
+	}
+	if computerNameScript != nil {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, ComputerNameScriptCommand(*computerNameScript)))
+	}
 	for _, cmd := range SystemScriptsCommands(systemScripts) {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
@@ -212,6 +228,30 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 type password struct {
 	Value     string `xml:"Value"`
 	PlainText bool   `xml:"PlainText"`
+}
+
+// newPasswordElement builds a password element. When obscure is true, the
+// value is Base64(UTF-16LE(raw+element)) and PlainText is false — the
+// standard Windows unattend obscuration convention (Microsoft Learn:
+// Microsoft-Windows-Shell-Setup | UserAccounts). This is obfuscation, not
+// encryption: element is a fixed, publicly known salt ("Password" or
+// "AdministratorPassword"), so an obscured value is exactly as recoverable
+// as a plaintext one to anyone who knows the convention — it only keeps
+// the password from being trivially grep-able in the raw XML.
+func newPasswordElement(raw string, element string, obscure bool) *password {
+	if !obscure {
+		return &password{Value: raw, PlainText: true}
+	}
+	return &password{Value: base64.StdEncoding.EncodeToString(utf16LEBytes(raw + element)), PlainText: false}
+}
+
+func utf16LEBytes(s string) []byte {
+	units := utf16.Encode([]rune(s))
+	buf := make([]byte, len(units)*2)
+	for i, u := range units {
+		binary.LittleEndian.PutUint16(buf[i*2:], u)
+	}
+	return buf
 }
 
 type localAccount struct {
@@ -285,7 +325,7 @@ type ShellSetupOOBE struct {
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
 // firstLogon, express and wifi. It returns nil when there is nothing to
 // configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, deleteWindowsOld bool, installVMGuestTools []profile.VMGuestTool, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, deleteWindowsOld bool, keepSensitiveFiles bool, installVMGuestTools []profile.VMGuestTool, obscurePasswords bool, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -299,7 +339,7 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 				la.DisplayName = *a.DisplayName
 			}
 			if a.Password != nil {
-				la.Password = &password{Value: *a.Password, PlainText: true}
+				la.Password = newPasswordElement(*a.Password, "Password", obscurePasswords)
 			}
 			ua.LocalAccounts.LocalAccount = append(ua.LocalAccounts.LocalAccount, la)
 		}
@@ -315,19 +355,19 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 		if ua == nil {
 			ua = &userAccounts{}
 		}
-		ua.AdministratorPassword = &password{Value: pwd, PlainText: true}
+		ua.AdministratorPassword = newPasswordElement(pwd, "AdministratorPassword", obscurePasswords)
 		al = &autoLogon{
 			Enabled:    true,
 			LogonCount: 1,
 			Username:   adminUsername,
-			Password:   &password{Value: pwd, PlainText: true},
+			Password:   newPasswordElement(pwd, "Password", obscurePasswords),
 		}
 	case profile.FirstLogonFirstCreatedAccount:
 		if len(accounts) > 0 {
 			first := accounts[0]
 			al = &autoLogon{Enabled: true, LogonCount: 1, Username: first.Name}
 			if first.Password != nil {
-				al.Password = &password{Value: *first.Password, PlainText: true}
+				al.Password = newPasswordElement(*first.Password, "Password", obscurePasswords)
 			}
 		}
 	case profile.FirstLogonNone:
@@ -383,6 +423,9 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
 	}
 	for _, cmd := range FirstLogonScriptsCommands(firstLogonScripts) {
+		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
+	}
+	if cmd := KeepSensitiveFilesFirstLogonCommand(keepSensitiveFiles); cmd != "" {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
 	}
 	if restartExplorerAfterScripts && len(flCommands) > 0 {

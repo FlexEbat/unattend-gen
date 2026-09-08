@@ -64,14 +64,19 @@ type ProductKey struct {
 // NewSetup builds the Microsoft-Windows-Setup component for edition and the
 // Windows 11 bypass flag. It returns nil when there is neither a product key
 // nor a bypass to apply: an empty component is not emitted.
-func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool) *Setup {
+func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool, useNarrator bool) *Setup {
 	key := resolveProductKey(edition)
 
-	var runSync *runSynchronous
+	var commands []runSynchronousCommand
 	if bypassWin11Requirements {
-		runSync = &runSynchronous{RunSynchronousCommand: []runSynchronousCommand{
-			newRunSynchronousCommand(1, bypassWin11Command),
-		}}
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, bypassWin11Command))
+	}
+	if useNarrator {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, narratorWindowsPECommand))
+	}
+	var runSync *runSynchronous
+	if len(commands) > 0 {
+		runSync = &runSynchronous{RunSynchronousCommand: commands}
 	}
 
 	if key == "" && runSync == nil {

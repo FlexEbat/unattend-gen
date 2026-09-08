@@ -55,6 +55,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateAccounts(p.Accounts)...)
 	errs = append(errs, validateFirstLogon(p.FirstLogon, p.Accounts)...)
 	errs = append(errs, validateWifi(p.Wifi)...)
+	errs = append(errs, validateComputerNameScript(p.ComputerName, p.ComputerNameScript)...)
 	errs = append(errs, validateRemoveApps(p.RemoveApps)...)
 	errs = append(errs, validateDefaultUserScripts(p.DefaultUserScripts)...)
 	errs = append(errs, validateRemoveFeatures(p.RemoveFeatures)...)
@@ -188,9 +189,18 @@ func validateWifi(w *WifiSettings) []string {
 	if w == nil {
 		return nil
 	}
+	if w.RawProfileXML != nil {
+		if strings.TrimSpace(*w.RawProfileXML) == "" {
+			return []string{"raw_profile_xml не может быть пустой строкой (используйте null)"}
+		}
+		return validateWellFormedXML(*w.RawProfileXML, "raw_profile_xml")
+	}
 	var errs []string
 	if len(w.SSID) < 1 || len(w.SSID) > 32 {
 		errs = append(errs, "SSID не может быть пустым и должен быть до 32 символов")
+	}
+	if w.Authentication == "" {
+		errs = append(errs, "authentication обязателен, если raw_profile_xml не задан")
 	}
 	if w.Authentication != WifiOpen {
 		if w.Password == nil || len(*w.Password) < 8 {
@@ -370,6 +380,33 @@ func validateInstallVMGuestTools(tools []VMGuestTool) []string {
 	return errs
 }
 
+func validateComputerNameScript(computerName, computerNameScript *string) []string {
+	if computerNameScript == nil {
+		return nil
+	}
+	var errs []string
+	if computerName != nil {
+		errs = append(errs, "computer_name и computer_name_script нельзя задавать одновременно")
+	}
+	if strings.TrimSpace(*computerNameScript) == "" {
+		errs = append(errs, "computer_name_script не может быть пустой строкой (используйте null)")
+	}
+	return errs
+}
+
+func validateWellFormedXML(xmlContent string, fieldName string) []string {
+	dec := xml.NewDecoder(strings.NewReader(xmlContent))
+	for {
+		_, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return []string{fieldName + " не является валидным XML: " + err.Error()}
+		}
+	}
+}
+
 func validateAppLockerPolicyXML(policyXML *string) []string {
 	if policyXML == nil {
 		return nil
@@ -377,15 +414,5 @@ func validateAppLockerPolicyXML(policyXML *string) []string {
 	if strings.TrimSpace(*policyXML) == "" {
 		return []string{"applocker_policy_xml не может быть пустой строкой (используйте null)"}
 	}
-	dec := xml.NewDecoder(strings.NewReader(*policyXML))
-	for {
-		_, err := dec.Token()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return []string{"applocker_policy_xml не является валидным XML: " + err.Error()}
-		}
-	}
-	return nil
+	return validateWellFormedXML(*policyXML, "applocker_policy_xml")
 }

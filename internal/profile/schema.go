@@ -122,11 +122,15 @@ const (
 )
 
 // WifiSettings describes a single Wi-Fi network profile to pre-configure.
+// Slice 22: if RawProfileXML is set, it is used verbatim instead of
+// SSID/Authentication/Password/ConnectHidden (which become optional in
+// that case — see validateWifi).
 type WifiSettings struct {
-	SSID           string             `json:"ssid" validate:"required,max=32"`
-	Authentication WifiAuthentication `json:"authentication" validate:"required,oneof=Open WPA2Personal WPA3Personal"`
+	SSID           string             `json:"ssid" validate:"max=32"`
+	Authentication WifiAuthentication `json:"authentication" validate:"omitempty,oneof=Open WPA2Personal WPA3Personal"`
 	Password       *string            `json:"password"` // required when Authentication != WifiOpen
 	ConnectHidden  bool               `json:"connect_hidden"`
+	RawProfileXML  *string            `json:"raw_profile_xml"`
 }
 
 // RemovableApp is a preinstalled app xmlgen knows how to remove. The set is
@@ -506,8 +510,9 @@ type Profile struct {
 	Name                           string                     `json:"name" validate:"required"`
 	Language                       LanguageSettings           `json:"language"`
 	Edition                        EditionSettings            `json:"edition"`
-	ComputerName                   *string                    `json:"computer_name"` // nil = Windows generates a random name
-	Timezone                       *string                    `json:"timezone"`      // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
+	ComputerName                   *string                    `json:"computer_name"`        // nil = Windows generates a random name
+	ComputerNameScript             *string                    `json:"computer_name_script"` // slice 22: mutually exclusive with ComputerName, see validate.go
+	Timezone                       *string                    `json:"timezone"`             // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
 	Accounts                       []UserAccount              `json:"accounts" validate:"max=5,dive"`
 	FirstLogon                     FirstLogon                 `json:"first_logon"`
 	ExpressSettings                ExpressSettings            `json:"express_settings"`
@@ -527,6 +532,9 @@ type Profile struct {
 	StartFolders                   []StartFolder              `json:"start_folders"`
 	InstallVMGuestTools            []VMGuestTool              `json:"install_vm_guest_tools"`
 	AppLockerPolicyXML             *string                    `json:"applocker_policy_xml"`
+	KeepSensitiveFiles             bool                       `json:"keep_sensitive_files"`
+	UseNarrator                    bool                       `json:"use_narrator"`
+	ObscurePasswords               bool                       `json:"obscure_passwords"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`
