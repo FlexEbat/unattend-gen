@@ -29,13 +29,15 @@ type testOOBE struct {
 }
 
 type testLocalAccount struct {
-	Name        string `xml:"Name"`
-	DisplayName string `xml:"DisplayName"`
-	Group       string `xml:"Group"`
+	Name        string        `xml:"Name"`
+	DisplayName string        `xml:"DisplayName"`
+	Group       string        `xml:"Group"`
+	Password    *testPassword `xml:"Password"`
 }
 
 type testPassword struct {
-	Value string `xml:"Value"`
+	Value     string `xml:"Value"`
+	PlainText bool   `xml:"PlainText"`
 }
 
 type testAutoLogon struct {
