@@ -17,10 +17,17 @@ var wifiAuthOptions = []widgets.SelectOption{
 }
 
 // Wifi is the Wi-Fi configuration screen: whether to configure a network at
-// all, and if so its SSID, authentication, password and visibility.
+// all, and then either the manual fields (SSID/authentication/password/
+// visibility) or, if rawMode is checked, a raw WLAN profile XML pasted in
+// directly (slice 22) — exported via `netsh wlan export profile
+// key=clear`. rawMode replaces the manual fields entirely rather than
+// combining with them, matching Profile.WifiSettings.RawProfileXML's
+// contract (set = used verbatim, manual fields ignored).
 type Wifi struct {
 	profile  *profile.Profile
 	enabled  widgets.Checkbox
+	rawMode  widgets.Checkbox
+	rawXML   widgets.LabeledTextArea
 	ssid     widgets.LabeledInput
 	auth     widgets.LabeledSelect
 	password widgets.PasswordInput
@@ -34,6 +41,8 @@ func NewWifi(p *profile.Profile) Wifi {
 	w := Wifi{
 		profile:  p,
 		enabled:  widgets.Checkbox{Label: "Configure Wi-Fi"},
+		rawMode:  widgets.Checkbox{Label: "Use a raw exported WLAN profile XML instead"},
+		rawXML:   widgets.NewLabeledTextArea("WLAN profile XML (netsh wlan export profile key=clear)", ""),
 		ssid:     widgets.NewLabeledInput("SSID", "MyNetwork"),
 		auth:     widgets.NewLabeledSelect("Authentication", wifiAuthOptions),
 		password: widgets.NewPasswordInput("Password (min 8 chars, not used for Open)"),
@@ -42,12 +51,17 @@ func NewWifi(p *profile.Profile) Wifi {
 	}
 	if p.Wifi != nil {
 		w.enabled.Checked = true
-		w.ssid.SetValue(p.Wifi.SSID)
-		w.auth.SetValue(string(p.Wifi.Authentication))
-		if p.Wifi.Password != nil {
-			w.password.SetValue(*p.Wifi.Password)
+		if p.Wifi.RawProfileXML != nil {
+			w.rawMode.Checked = true
+			w.rawXML.SetValue(*p.Wifi.RawProfileXML)
+		} else {
+			w.ssid.SetValue(p.Wifi.SSID)
+			w.auth.SetValue(string(p.Wifi.Authentication))
+			if p.Wifi.Password != nil {
+				w.password.SetValue(*p.Wifi.Password)
+			}
+			w.hidden.Checked = p.Wifi.ConnectHidden
 		}
-		w.hidden.Checked = p.Wifi.ConnectHidden
 	} else {
 		w.auth.SetValue(string(profile.WifiOpen))
 	}
@@ -60,12 +74,26 @@ func (w Wifi) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-// fieldCount: 0=enabled checkbox, 1=SSID, 2=auth, 3=password, 4=hidden.
-const wifiFieldCount = 5
+// fieldCount: 0=enabled; if !enabled, that's it. If enabled: 1=rawMode;
+// if rawMode, 2=rawXML. Otherwise 2=SSID, 3=auth, 4=password, 5=hidden.
+func (w Wifi) fieldCount() int {
+	if !w.enabled.Checked {
+		return 1
+	}
+	if w.rawMode.Checked {
+		return 3
+	}
+	return 6
+}
 
 func (w *Wifi) sync() {
 	if !w.enabled.Checked {
 		w.profile.Wifi = nil
+		return
+	}
+	if w.rawMode.Checked {
+		raw := w.rawXML.Value()
+		w.profile.Wifi = &profile.WifiSettings{RawProfileXML: &raw}
 		return
 	}
 	var password *string
@@ -82,24 +110,30 @@ func (w *Wifi) sync() {
 
 // Update handles focus cycling, checkbox/select input and screen navigation.
 func (w Wifi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	fieldCount := w.fieldCount()
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "tab":
-			w.focus = (w.focus + 1) % wifiFieldCount
+			w.focus = (w.focus + 1) % fieldCount
 			w.sync()
 			return w, nil
 		case "shift+tab":
-			w.focus = (w.focus - 1 + wifiFieldCount) % wifiFieldCount
+			w.focus = (w.focus - 1 + fieldCount) % fieldCount
 			w.sync()
 			return w, nil
 		case " ":
-			switch w.focus {
-			case 0:
+			switch {
+			case w.focus == 0:
 				w.enabled.Checked = !w.enabled.Checked
-			case 4:
+			case w.focus == 1 && w.enabled.Checked:
+				w.rawMode.Checked = !w.rawMode.Checked
+			case w.focus == 5 && w.enabled.Checked && !w.rawMode.Checked:
 				w.hidden.Checked = !w.hidden.Checked
 			}
 			w.sync()
+			if w.focus >= w.fieldCount() {
+				w.focus = w.fieldCount() - 1
+			}
 			return w, nil
 		case "ctrl+n":
 			w.sync()
@@ -114,23 +148,33 @@ func (w Wifi) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	switch w.focus {
-	case 1:
-		w.ssid, cmd = w.ssid.Update(msg)
-	case 2:
-		w.auth, cmd = w.auth.Update(msg)
-	case 3:
-		w.password, cmd = w.password.Update(msg)
+	if w.enabled.Checked {
+		switch {
+		case w.rawMode.Checked && w.focus == 2:
+			w.rawXML, cmd = w.rawXML.Update(msg)
+		case !w.rawMode.Checked && w.focus == 2:
+			w.ssid, cmd = w.ssid.Update(msg)
+		case !w.rawMode.Checked && w.focus == 3:
+			w.auth, cmd = w.auth.Update(msg)
+		case !w.rawMode.Checked && w.focus == 4:
+			w.password, cmd = w.password.Update(msg)
+		}
 	}
 	w.sync()
 	return w, cmd
 }
 
-// View renders the checkbox and, once enabled, the network fields.
+// View renders the checkbox and, once enabled, either the raw XML text
+// area or the manual network fields.
 func (w Wifi) View() string {
 	out := w.enabled.View(w.focus == 0)
 	if w.enabled.Checked {
-		out += "\n\n" + w.ssid.View() + "\n\n" + w.auth.View() + "\n\n" + w.password.View() + "\n\n" + w.hidden.View(w.focus == 4)
+		out += "\n\n" + w.rawMode.View(w.focus == 1)
+		if w.rawMode.Checked {
+			out += "\n\n" + w.rawXML.View()
+		} else {
+			out += "\n\n" + w.ssid.View() + "\n\n" + w.auth.View() + "\n\n" + w.password.View() + "\n\n" + w.hidden.View(w.focus == 5)
+		}
 	}
 	out += "\n\n" + w.bar.View()
 	return out
