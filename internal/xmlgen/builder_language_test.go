@@ -78,6 +78,13 @@ func baseProfile() *profile.Profile {
 		Accounts:        []profile.UserAccount{},
 		FirstLogon:      profile.FirstLogon{Mode: profile.FirstLogonNone},
 		ExpressSettings: profile.ExpressSettings{Mode: profile.ExpressInteractive},
+		// KeepSensitiveFiles defaults to false in production (matches the
+		// reference implementation: delete unless told to keep), which
+		// would otherwise add a FirstLogonCommands entry to every "empty
+		// profile" test in this package. Test fixture only — see
+		// TestBuildAnswerFileKeepSensitiveFilesFalseDeletes for the actual
+		// default-delete behavior.
+		KeepSensitiveFiles: true,
 	}
 }
 
