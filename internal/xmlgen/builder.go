@@ -51,21 +51,21 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	doc := unattendDoc{Xmlns: unattendNamespace}
 
 	winPE := []interface{}{components.NewInternationalCoreWinPE(p.Language)}
-	if setup := components.NewSetup(p.Edition, p.SystemTweaks.BypassWin11Requirements); setup != nil {
+	if setup := components.NewSetup(p.Edition, p.SystemTweaks.BypassWin11Requirements, p.UseNarrator); setup != nil {
 		winPE = append(winPE, setup)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "windowsPE", Components: winPE})
 
 	specialize := []interface{}{components.NewInternationalCoreSpecialize(p.Language)}
-	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.Timezone); shellSpecialize != nil {
+	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.Timezone, p.ComputerNameScript); shellSpecialize != nil {
 		specialize = append(specialize, shellSpecialize)
 	}
-	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.StickyKeys, p.LockKeys, p.DesktopIcons, p.StartFolders, p.AppLockerPolicyXML, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
+	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.StickyKeys, p.LockKeys, p.DesktopIcons, p.StartFolders, p.AppLockerPolicyXML, p.UseNarrator, p.ComputerNameScript, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
 		specialize = append(specialize, deployment)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
-	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps, p.RemoveFeatures, p.RemoveOptionalFeatures, p.SystemTweaks.DeleteHiddenJunctions, p.SystemTweaks.DeleteWindowsOld, p.InstallVMGuestTools, p.FirstLogonScripts, p.RestartExplorerAfterScripts); shellOOBE != nil {
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps, p.RemoveFeatures, p.RemoveOptionalFeatures, p.SystemTweaks.DeleteHiddenJunctions, p.SystemTweaks.DeleteWindowsOld, p.KeepSensitiveFiles, p.InstallVMGuestTools, p.ObscurePasswords, p.FirstLogonScripts, p.RestartExplorerAfterScripts); shellOOBE != nil {
 		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
 	}
 
