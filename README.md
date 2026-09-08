@@ -45,6 +45,9 @@ no matter how it was filled in.
   pinned on the Start menu (Win11) — applied to every future account
 - VM guest tools auto-install (VirtualBox, VMware, VirtIO, Parallels) and
   raw AppLocker policy XML
+- Dynamic computer name via a PowerShell script, obscured (Base64) account
+  passwords in the generated XML, auto-start Narrator, optional cleanup of
+  the answer file after setup, and raw exported WLAN profile XML
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
