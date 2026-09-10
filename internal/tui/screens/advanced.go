@@ -22,30 +22,32 @@ var vmGuestToolLabels = map[profile.VMGuestTool]string{
 type Advanced struct {
 	profile *profile.Profile
 
-	vmToolChecks       []widgets.Checkbox
-	appLocker          widgets.LabeledTextArea
-	computerNameScript widgets.LabeledTextArea
-	keepSensitiveFiles widgets.Checkbox
-	useNarrator        widgets.Checkbox
-	obscurePasswords   widgets.Checkbox
+	vmToolChecks          []widgets.Checkbox
+	appLocker             widgets.LabeledTextArea
+	computerNameScript    widgets.LabeledTextArea
+	keepSensitiveFiles    widgets.Checkbox
+	useNarrator           widgets.Checkbox
+	obscurePasswords      widgets.Checkbox
+	hidePowerShellWindows widgets.Checkbox
 
 	focus int
 	bar   widgets.ConfirmBar
 }
 
-var advancedFieldCount = len(profile.VMGuestTools) + 5 // + 2 text areas + 3 checkboxes
+var advancedFieldCount = len(profile.VMGuestTools) + 6 // + 2 text areas + 4 checkboxes
 
 // NewAdvanced builds the advanced screen backed by profile.
 func NewAdvanced(p *profile.Profile) Advanced {
 	a := Advanced{
-		profile:            p,
-		vmToolChecks:       make([]widgets.Checkbox, len(profile.VMGuestTools)),
-		appLocker:          widgets.NewLabeledTextArea("AppLocker policy XML (optional, raw XML)", ""),
-		computerNameScript: widgets.NewLabeledTextArea("Computer name script (PowerShell, outputs the new name; overrides a static computer name)", ""),
-		keepSensitiveFiles: widgets.Checkbox{Label: "Keep unattend.xml/Wi-Fi profile after setup (default: deleted)"},
-		useNarrator:        widgets.Checkbox{Label: "Start Narrator automatically during setup and first logon"},
-		obscurePasswords:   widgets.Checkbox{Label: "Obscure account passwords in the generated XML (Base64, not encryption)"},
-		bar:                widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
+		profile:               p,
+		vmToolChecks:          make([]widgets.Checkbox, len(profile.VMGuestTools)),
+		appLocker:             widgets.NewLabeledTextArea("AppLocker policy XML (optional, raw XML)", ""),
+		computerNameScript:    widgets.NewLabeledTextArea("Computer name script (PowerShell, outputs the new name; overrides a static computer name)", ""),
+		keepSensitiveFiles:    widgets.Checkbox{Label: "Keep unattend.xml/Wi-Fi profile after setup (default: deleted)"},
+		useNarrator:           widgets.Checkbox{Label: "Start Narrator automatically during setup and first logon"},
+		obscurePasswords:      widgets.Checkbox{Label: "Obscure account passwords in the generated XML (Base64, not encryption)"},
+		hidePowerShellWindows: widgets.Checkbox{Label: "Hide PowerShell windows during setup"},
+		bar:                   widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 	}
 	selected := make(map[profile.VMGuestTool]bool, len(p.InstallVMGuestTools))
 	for _, t := range p.InstallVMGuestTools {
@@ -63,6 +65,7 @@ func NewAdvanced(p *profile.Profile) Advanced {
 	a.keepSensitiveFiles.Checked = p.KeepSensitiveFiles
 	a.useNarrator.Checked = p.UseNarrator
 	a.obscurePasswords.Checked = p.ObscurePasswords
+	a.hidePowerShellWindows.Checked = p.HidePowerShellWindows
 	return a
 }
 
@@ -72,11 +75,12 @@ func (a Advanced) Init() tea.Cmd {
 }
 
 var (
-	advancedAppLockerIdx          = len(profile.VMGuestTools)
-	advancedComputerNameScriptIdx = advancedAppLockerIdx + 1
-	advancedKeepSensitiveFilesIdx = advancedComputerNameScriptIdx + 1
-	advancedUseNarratorIdx        = advancedKeepSensitiveFilesIdx + 1
-	advancedObscurePasswordsIdx   = advancedUseNarratorIdx + 1
+	advancedAppLockerIdx             = len(profile.VMGuestTools)
+	advancedComputerNameScriptIdx    = advancedAppLockerIdx + 1
+	advancedKeepSensitiveFilesIdx    = advancedComputerNameScriptIdx + 1
+	advancedUseNarratorIdx           = advancedKeepSensitiveFilesIdx + 1
+	advancedObscurePasswordsIdx      = advancedUseNarratorIdx + 1
+	advancedHidePowerShellWindowsIdx = advancedObscurePasswordsIdx + 1
 )
 
 func (a *Advanced) sync() {
@@ -103,6 +107,7 @@ func (a *Advanced) sync() {
 	a.profile.KeepSensitiveFiles = a.keepSensitiveFiles.Checked
 	a.profile.UseNarrator = a.useNarrator.Checked
 	a.profile.ObscurePasswords = a.obscurePasswords.Checked
+	a.profile.HidePowerShellWindows = a.hidePowerShellWindows.Checked
 }
 
 // Update handles focus cycling, checkbox toggling, text input and screen
@@ -132,6 +137,10 @@ func (a Advanced) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, nil
 			case a.focus == advancedObscurePasswordsIdx:
 				a.obscurePasswords.Checked = !a.obscurePasswords.Checked
+				a.sync()
+				return a, nil
+			case a.focus == advancedHidePowerShellWindowsIdx:
+				a.hidePowerShellWindows.Checked = !a.hidePowerShellWindows.Checked
 				a.sync()
 				return a, nil
 			}
@@ -170,6 +179,7 @@ func (a Advanced) View() string {
 	out += "\n\n" + a.keepSensitiveFiles.View(a.focus == advancedKeepSensitiveFilesIdx)
 	out += "\n" + a.useNarrator.View(a.focus == advancedUseNarratorIdx)
 	out += "\n" + a.obscurePasswords.View(a.focus == advancedObscurePasswordsIdx)
+	out += "\n" + a.hidePowerShellWindows.View(a.focus == advancedHidePowerShellWindowsIdx)
 	out += "\n\n" + a.bar.View()
 	return out
 }

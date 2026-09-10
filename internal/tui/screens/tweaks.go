@@ -65,9 +65,10 @@ var tweakLabels = [tweaksCount]string{
 	"Make Edge uninstallable",
 	"Delete C:\\Windows.old",
 	"Disable Core Isolation (Memory Integrity)",
+	"Delete Microsoft Edge desktop icon",
 }
 
-const tweaksCount = 27
+const tweaksCount = 28
 
 // Tweaks is the express settings / system tweaks / account policy screen.
 type Tweaks struct {
@@ -182,6 +183,7 @@ func tweaksToValues(tw profile.SystemTweaks) [tweaksCount]bool {
 		tw.MakeEdgeUninstallable,
 		tw.DeleteWindowsOld,
 		tw.DisableCoreIsolation,
+		tw.DeleteEdgeDesktopIcon,
 	}
 }
 
@@ -214,6 +216,7 @@ func valuesToTweaks(v [tweaksCount]bool) profile.SystemTweaks {
 		MakeEdgeUninstallable:      v[24],
 		DeleteWindowsOld:           v[25],
 		DisableCoreIsolation:       v[26],
+		DeleteEdgeDesktopIcon:      v[27],
 	}
 }
 
