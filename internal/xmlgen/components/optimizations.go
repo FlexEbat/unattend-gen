@@ -119,12 +119,12 @@ const deleteJunctionsUserOnceScript = `@(
 // DeleteJunctionsFirstLogonCommand returns one command for the
 // oobeSystem/FirstLogonCommands list (same family as Wi-Fi/apps/features),
 // removing junction points visible to the account created during setup.
-func DeleteJunctionsFirstLogonCommand() string {
+func DeleteJunctionsFirstLogonCommand(hidePowerShellWindows bool) string {
 	path := scriptsDir + `\unattend-delete-junctions.ps1`
 	return wrapCommand([]string{
 		ensureScriptsDirStatement(),
 		writeFileStatement(path, []byte(deleteJunctionsFirstLogonScript)),
-		invokeCommand(profile.ScriptPs1, path),
+		invokeCommand(profile.ScriptPs1, path, hidePowerShellWindows),
 	})
 }
 
@@ -132,10 +132,10 @@ func DeleteJunctionsFirstLogonCommand() string {
 // mounts the default user hive and registers a RunOnce entry — the same
 // mechanism UserOnceScriptCommand uses for user-supplied scripts — so every
 // future account also gets its junctions cleaned up on first logon.
-func DeleteJunctionsUserOnceCommand() string {
+func DeleteJunctionsUserOnceCommand(hidePowerShellWindows bool) string {
 	scriptPath := scriptsDir + `\unattend-delete-junctions-uo.ps1`
 	wrapperPath := scriptsDir + `\unattend-delete-junctions-uo-run.cmd`
-	wrapperContent := "@echo off\r\n" + invokeCommand(profile.ScriptPs1, scriptPath) + "\r\n"
+	wrapperContent := "@echo off\r\n" + invokeCommand(profile.ScriptPs1, scriptPath, hidePowerShellWindows) + "\r\n"
 	return wrapCommand([]string{
 		ensureScriptsDirStatement(),
 		fmt.Sprintf(`reg.exe load %s "%s"`, defaultUserHiveKey, defaultUserHivePath),
@@ -162,13 +162,13 @@ Get-ChildItem -Path 'Registry::HKU\DefaultUser\AppEvents\Schemes\Apps\*\*' |
 // TurnOffSystemSoundsDefaultUserCommand returns one specialize-pass command
 // that mounts the default user hive and clears app event sounds there, so
 // every future account starts with sounds off.
-func TurnOffSystemSoundsDefaultUserCommand() string {
+func TurnOffSystemSoundsDefaultUserCommand(hidePowerShellWindows bool) string {
 	path := scriptsDir + `\unattend-system-sounds.ps1`
 	return wrapCommand([]string{
 		ensureScriptsDirStatement(),
 		fmt.Sprintf(`reg.exe load %s "%s"`, defaultUserHiveKey, defaultUserHivePath),
 		writeFileStatement(path, []byte(turnOffSystemSoundsDefaultUserScript)),
-		invokeCommand(profile.ScriptPs1, path),
+		invokeCommand(profile.ScriptPs1, path, hidePowerShellWindows),
 		fmt.Sprintf(`reg.exe unload %s`, defaultUserHiveKey),
 	})
 }
@@ -178,11 +178,11 @@ func TurnOffSystemSoundsDefaultUserCommand() string {
 // ".None" — the DefaultUser command above only affects the template new
 // accounts are created from, not an account's own scheme selector, which
 // still needs to be flipped once at that account's first logon.
-func TurnOffSystemSoundsUserOnceCommand() string {
+func TurnOffSystemSoundsUserOnceCommand(hidePowerShellWindows bool) string {
 	const script = `Set-ItemProperty -LiteralPath 'Registry::HKCU\AppEvents\Schemes' -Name '(Default)' -Type 'String' -Value '.None';`
 	scriptPath := scriptsDir + `\unattend-system-sounds-uo.ps1`
 	wrapperPath := scriptsDir + `\unattend-system-sounds-uo-run.cmd`
-	wrapperContent := "@echo off\r\n" + invokeCommand(profile.ScriptPs1, scriptPath) + "\r\n"
+	wrapperContent := "@echo off\r\n" + invokeCommand(profile.ScriptPs1, scriptPath, hidePowerShellWindows) + "\r\n"
 	return wrapCommand([]string{
 		ensureScriptsDirStatement(),
 		fmt.Sprintf(`reg.exe load %s "%s"`, defaultUserHiveKey, defaultUserHivePath),
@@ -293,12 +293,12 @@ const makeEdgeUninstallableScript = `try {
 
 // MakeEdgeUninstallableCommand returns one specialize-pass command that
 // writes and runs makeEdgeUninstallableScript.
-func MakeEdgeUninstallableCommand() string {
+func MakeEdgeUninstallableCommand(hidePowerShellWindows bool) string {
 	path := scriptsDir + `\unattend-make-edge-uninstallable.ps1`
 	return wrapCommand([]string{
 		ensureScriptsDirStatement(),
 		writeFileStatement(path, []byte(makeEdgeUninstallableScript)),
-		invokeCommand(profile.ScriptPs1, path),
+		invokeCommand(profile.ScriptPs1, path, hidePowerShellWindows),
 	})
 }
 
@@ -306,3 +306,33 @@ func MakeEdgeUninstallableCommand() string {
 // (Memory Integrity / Core Isolation) — required by some VM guests and
 // older drivers that don't support it. Slice 21 (tech.md backlog group C).
 const disableCoreIsolationCommand = `cmd.exe /c reg add "HKLM\System\CurrentControlSet\Control\DeviceGuard" /v "EnableVirtualizationBasedSecurity" /t REG_DWORD /d 0 /f && reg add "HKLM\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "Enabled" /t REG_DWORD /d 0 /f && reg add "HKLM\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "EnabledBootId" /t REG_DWORD /d 0 /f && reg add "HKLM\System\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" /v "WasEnabledBy" /t REG_DWORD /d 0 /f`
+
+// Slice 23 (side finding from slice 20): DeleteEdgeDesktopIcon removes the
+// Microsoft Edge shortcut Windows drops on the desktop. Mechanism sourced
+// from the reference implementation (modifier/Optimizations.cs), not
+// invented from memory.
+
+// deleteEdgeDesktopIconSpecializeCommand deletes the shortcut from the
+// Public desktop (shared by every account, present as soon as the image
+// applies — no hive mount needed).
+const deleteEdgeDesktopIconSpecializeCommand = `powershell -NoProfile -Command "Remove-Item -LiteralPath 'C:\Users\Public\Desktop\Microsoft Edge.lnk' -ErrorAction 'SilentlyContinue' -Verbose"`
+
+// DeleteEdgeDesktopIconUserOnceCommand returns one specialize-pass command
+// that mounts the default user hive just long enough to register a
+// RunOnce entry; that entry deletes the shortcut from the live account's
+// own Desktop at first logon — applies to every future account, not just
+// the one created during setup.
+func DeleteEdgeDesktopIconUserOnceCommand(hidePowerShellWindows bool) string {
+	const script = `Remove-Item -LiteralPath "${env:USERPROFILE}\Desktop\Microsoft Edge.lnk" -ErrorAction 'SilentlyContinue' -Verbose;`
+	scriptPath := scriptsDir + `\unattend-delete-edge-icon-uo.ps1`
+	wrapperPath := scriptsDir + `\unattend-delete-edge-icon-uo-run.cmd`
+	wrapperContent := "@echo off\r\n" + invokeCommand(profile.ScriptPs1, scriptPath, hidePowerShellWindows) + "\r\n"
+	return wrapCommand([]string{
+		ensureScriptsDirStatement(),
+		fmt.Sprintf(`reg.exe load %s "%s"`, defaultUserHiveKey, defaultUserHivePath),
+		writeFileStatement(scriptPath, []byte(script)),
+		writeFileStatement(wrapperPath, []byte(wrapperContent)),
+		fmt.Sprintf(`reg.exe add "%s" /v UnattendDeleteEdgeIcon /d "%s" /f`, defaultUserRunOnceKey, wrapperPath),
+		fmt.Sprintf(`reg.exe unload %s`, defaultUserHiveKey),
+	})
+}

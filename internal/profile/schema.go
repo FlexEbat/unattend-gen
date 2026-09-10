@@ -110,6 +110,8 @@ type SystemTweaks struct {
 	DeleteWindowsOld      bool `json:"delete_windows_old"`
 	// Slice 21 (tech.md backlog group C).
 	DisableCoreIsolation bool `json:"disable_core_isolation"`
+	// Slice 23 (побочная находка слайса 20, tech.md backlog group C).
+	DeleteEdgeDesktopIcon bool `json:"delete_edge_desktop_icon"`
 }
 
 // WifiAuthentication is the authentication type of a pre-configured Wi-Fi profile.
@@ -535,6 +537,7 @@ type Profile struct {
 	KeepSensitiveFiles             bool                       `json:"keep_sensitive_files"`
 	UseNarrator                    bool                       `json:"use_narrator"`
 	ObscurePasswords               bool                       `json:"obscure_passwords"`
+	HidePowerShellWindows          bool                       `json:"hide_powershell_windows"`
 	// SystemScripts run in the system context, before user accounts are
 	// created. Max 4.
 	SystemScripts []CustomScript `json:"system_scripts" validate:"max=4,dive"`

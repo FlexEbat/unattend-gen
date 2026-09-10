@@ -75,7 +75,7 @@ var vmGuestToolScripts = map[profile.VMGuestTool]string{
 // get blocked before first logon) — this project has no equivalent
 // "Defender disabled" signal to key off, so all four always run at first
 // logon, the reference implementation's own fallback behavior.
-func VMGuestToolsFirstLogonCommands(tools []profile.VMGuestTool) []string {
+func VMGuestToolsFirstLogonCommands(tools []profile.VMGuestTool, hidePowerShellWindows bool) []string {
 	var commands []string
 	for _, t := range tools {
 		script, ok := vmGuestToolScripts[t]
@@ -86,7 +86,7 @@ func VMGuestToolsFirstLogonCommands(tools []profile.VMGuestTool) []string {
 		commands = append(commands, wrapCommand([]string{
 			ensureScriptsDirStatement(),
 			writeFileStatement(path, []byte(script)),
-			invokeCommand(profile.ScriptPs1, path),
+			invokeCommand(profile.ScriptPs1, path, hidePowerShellWindows),
 		}))
 	}
 	return commands

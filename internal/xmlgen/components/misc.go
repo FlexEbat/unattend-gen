@@ -33,7 +33,7 @@ const keepSensitiveFilesScript = `@(
 // KeepSensitiveFilesFirstLogonCommand returns one oobeSystem/
 // FirstLogonCommands entry that deletes the files above, or "" when
 // keepSensitiveFiles is true.
-func KeepSensitiveFilesFirstLogonCommand(keepSensitiveFiles bool) string {
+func KeepSensitiveFilesFirstLogonCommand(keepSensitiveFiles bool, hidePowerShellWindows bool) string {
 	if keepSensitiveFiles {
 		return ""
 	}
@@ -41,7 +41,7 @@ func KeepSensitiveFilesFirstLogonCommand(keepSensitiveFiles bool) string {
 	return wrapCommand([]string{
 		ensureScriptsDirStatement(),
 		writeFileStatement(path, []byte(keepSensitiveFilesScript)),
-		invokeCommand(profile.ScriptPs1, path),
+		invokeCommand(profile.ScriptPs1, path, hidePowerShellWindows),
 	})
 }
 

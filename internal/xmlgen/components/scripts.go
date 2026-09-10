@@ -23,12 +23,22 @@ func scriptExtension(f profile.ScriptFormat) string {
 // with double quotes throughout: that quoting works unescaped both as a
 // PowerShell statement and, for UserOnce, inside a batch (.cmd) file — the
 // two contexts this function's output ends up in.
-func invokeCommand(format profile.ScriptFormat, path string) string {
+// invokeCommand returns the command line that runs a script of the given
+// format. When hidden is true, PowerShell scripts run with -WindowStyle
+// Hidden instead of Normal (the global "hide PowerShell windows during
+// setup" switch, Profile.HidePowerShellWindows) — cmd/reg/vbs invocations
+// are unaffected, matching the reference implementation (only PowerShell
+// windows are ever visible during setup in the first place).
+func invokeCommand(format profile.ScriptFormat, path string, hidden bool) string {
 	switch format {
 	case profile.ScriptCmd:
 		return fmt.Sprintf(`cmd.exe /c "%s"`, path)
 	case profile.ScriptPs1:
-		return fmt.Sprintf(`powershell.exe -WindowStyle Normal -ExecutionPolicy Unrestricted -NoProfile -File "%s"`, path)
+		style := "Normal"
+		if hidden {
+			style = "Hidden"
+		}
+		return fmt.Sprintf(`powershell.exe -WindowStyle %s -ExecutionPolicy Unrestricted -NoProfile -File "%s"`, style, path)
 	case profile.ScriptReg:
 		return fmt.Sprintf(`reg.exe import "%s"`, path)
 	case profile.ScriptVbs:
@@ -60,14 +70,14 @@ func ensureScriptsDirStatement() string {
 // SystemScriptsCommands returns one command per script, each writing the
 // script to disk and running it. They run in the system context before
 // user accounts are created (Microsoft-Windows-Deployment, specialize).
-func SystemScriptsCommands(scripts []profile.CustomScript) []string {
+func SystemScriptsCommands(scripts []profile.CustomScript, hidePowerShellWindows bool) []string {
 	var cmds []string
 	for i, s := range scripts {
 		path := fmt.Sprintf(`%s\unattend-sys-%02d%s`, scriptsDir, i+1, scriptExtension(s.Format))
 		cmds = append(cmds, wrapCommand([]string{
 			ensureScriptsDirStatement(),
 			writeFileStatement(path, []byte(s.Content)),
-			invokeCommand(s.Format, path),
+			invokeCommand(s.Format, path, hidePowerShellWindows),
 		}))
 	}
 	return cmds
@@ -76,14 +86,14 @@ func SystemScriptsCommands(scripts []profile.CustomScript) []string {
 // FirstLogonScriptsCommands returns one command per script, each writing
 // the script to disk and running it. They run once, when the first user
 // logs on (Microsoft-Windows-Shell-Setup/FirstLogonCommands, oobeSystem).
-func FirstLogonScriptsCommands(scripts []profile.CustomScript) []string {
+func FirstLogonScriptsCommands(scripts []profile.CustomScript, hidePowerShellWindows bool) []string {
 	var cmds []string
 	for i, s := range scripts {
 		path := fmt.Sprintf(`%s\unattend-fl-%02d%s`, scriptsDir, i+1, scriptExtension(s.Format))
 		cmds = append(cmds, wrapCommand([]string{
 			ensureScriptsDirStatement(),
 			writeFileStatement(path, []byte(s.Content)),
-			invokeCommand(s.Format, path),
+			invokeCommand(s.Format, path, hidePowerShellWindows),
 		}))
 	}
 	return cmds
@@ -94,14 +104,14 @@ func FirstLogonScriptsCommands(scripts []profile.CustomScript) []string {
 // writes and runs each script, then unmounts it. Empty when scripts is
 // empty. Runs in the specialize pass, after SystemScripts and before
 // accounts are created.
-func DefaultUserScriptCommand(scripts []profile.CustomScript) string {
+func DefaultUserScriptCommand(scripts []profile.CustomScript, hidePowerShellWindows bool) string {
 	if len(scripts) == 0 {
 		return ""
 	}
 	statements := []string{ensureScriptsDirStatement(), fmt.Sprintf(`reg.exe load %s "%s"`, defaultUserHiveKey, defaultUserHivePath)}
 	for i, s := range scripts {
 		path := fmt.Sprintf(`%s\unattend-du-%02d%s`, scriptsDir, i+1, scriptExtension(s.Format))
-		statements = append(statements, writeFileStatement(path, []byte(s.Content)), invokeCommand(s.Format, path))
+		statements = append(statements, writeFileStatement(path, []byte(s.Content)), invokeCommand(s.Format, path, hidePowerShellWindows))
 	}
 	statements = append(statements, fmt.Sprintf(`reg.exe unload %s`, defaultUserHiveKey))
 	return wrapCommand(statements)
@@ -112,7 +122,7 @@ func DefaultUserScriptCommand(scripts []profile.CustomScript) string {
 // registers the wrapper in the hive's RunOnce key — so it runs once for
 // every account created from that template, not just the current one.
 // Empty when scripts is empty.
-func UserOnceScriptCommand(scripts []profile.CustomScript) string {
+func UserOnceScriptCommand(scripts []profile.CustomScript, hidePowerShellWindows bool) string {
 	if len(scripts) == 0 {
 		return ""
 	}
@@ -121,7 +131,7 @@ func UserOnceScriptCommand(scripts []profile.CustomScript) string {
 		n := i + 1
 		scriptPath := fmt.Sprintf(`%s\unattend-uo-%02d%s`, scriptsDir, n, scriptExtension(s.Format))
 		wrapperPath := fmt.Sprintf(`%s\unattend-uo-%02d-run.cmd`, scriptsDir, n)
-		wrapperContent := "@echo off\r\n" + invokeCommand(s.Format, scriptPath) + "\r\n"
+		wrapperContent := "@echo off\r\n" + invokeCommand(s.Format, scriptPath, hidePowerShellWindows) + "\r\n"
 		valueName := fmt.Sprintf("UnattendUserOnce%02d", n)
 		statements = append(statements,
 			writeFileStatement(scriptPath, []byte(s.Content)),

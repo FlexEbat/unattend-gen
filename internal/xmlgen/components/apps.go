@@ -104,12 +104,12 @@ const removeOneDriveFilesScript = `@(
 
 // RemoveOneDriveFilesCommand returns one specialize-pass command deleting
 // OneDrive's leftover shortcut and setup executables.
-func RemoveOneDriveFilesCommand() string {
+func RemoveOneDriveFilesCommand(hidePowerShellWindows bool) string {
 	path := scriptsDir + `\unattend-remove-onedrive.ps1`
 	return wrapCommand([]string{
 		ensureScriptsDirStatement(),
 		writeFileStatement(path, []byte(removeOneDriveFilesScript)),
-		invokeCommand(profile.ScriptPs1, path),
+		invokeCommand(profile.ScriptPs1, path, hidePowerShellWindows),
 	})
 }
 
