@@ -15,7 +15,7 @@ no matter how it was filled in.
 
 - Language, locale, keyboard layout, Windows edition and product key
 - Computer name, time zone, and up to 5 local accounts, with auto-logon control
-- Express settings (telemetry) and 26 system tweaks (Windows Update, UAC,
+- Express settings (telemetry) and 28 system tweaks (Windows Update, UAC,
   Windows 11 hardware-check bypass, SmartScreen, Fast Startup, System Restore,
   long paths, Remote Desktop, junction-point cleanup, Windows Update reboot
   prevention, ACL hardening, and more)
@@ -47,7 +47,8 @@ no matter how it was filled in.
   raw AppLocker policy XML
 - Dynamic computer name via a PowerShell script, obscured (Base64) account
   passwords in the generated XML, auto-start Narrator, optional cleanup of
-  the answer file after setup, and raw exported WLAN profile XML
+  the answer file after setup, raw exported WLAN profile XML, and a global
+  switch to hide every PowerShell window during setup
 - Two built-in presets (`minimal`, `single-user`) to start from
 - Interactive TUI for filling in a profile screen by screen, with a live XML
   preview before saving
