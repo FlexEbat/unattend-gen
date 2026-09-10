@@ -106,7 +106,7 @@ type Deployment struct {
 // DefaultUser scripts and the UserOnce RunOnce registration (in that
 // order). Returns nil when none are set: an empty component is not
 // emitted.
-func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, useNarrator bool, computerNameScript *string, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
+func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, useNarrator bool, computerNameScript *string, hidePowerShellWindows bool, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
 	enabledCommands := []struct {
 		enabled bool
 		command string
@@ -133,6 +133,7 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		{tweaks.PreventDeviceApps, preventDeviceAppsCommand},
 		{tweaks.HardenSystemDriveACL, hardenSystemDriveACLCommand},
 		{tweaks.DisableCoreIsolation, disableCoreIsolationCommand},
+		{tweaks.DeleteEdgeDesktopIcon, deleteEdgeDesktopIconSpecializeCommand},
 	}
 
 	var commands []runSynchronousCommand
@@ -142,14 +143,14 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		}
 	}
 	if tweaks.MakeEdgeUninstallable {
-		commands = append(commands, newRunSynchronousCommand(len(commands)+1, MakeEdgeUninstallableCommand()))
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, MakeEdgeUninstallableCommand(hidePowerShellWindows)))
 	}
 	if tweaks.PreventAutomaticReboot {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, PreventAutomaticRebootCommand()))
 	}
 	if tweaks.TurnOffSystemSounds {
-		commands = append(commands, newRunSynchronousCommand(len(commands)+1, TurnOffSystemSoundsDefaultUserCommand()))
-		commands = append(commands, newRunSynchronousCommand(len(commands)+1, TurnOffSystemSoundsUserOnceCommand()))
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, TurnOffSystemSoundsDefaultUserCommand(hidePowerShellWindows)))
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, TurnOffSystemSoundsUserOnceCommand(hidePowerShellWindows)))
 	}
 	if tweaks.DisableAppSuggestions {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, DisableAppSuggestionsDefaultUserCommand()))
@@ -158,10 +159,13 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, DisablePointerPrecisionCommand()))
 	}
 	if tweaks.DeleteHiddenJunctions {
-		commands = append(commands, newRunSynchronousCommand(len(commands)+1, DeleteJunctionsUserOnceCommand()))
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, DeleteJunctionsUserOnceCommand(hidePowerShellWindows)))
+	}
+	if tweaks.DeleteEdgeDesktopIcon {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, DeleteEdgeDesktopIconUserOnceCommand(hidePowerShellWindows)))
 	}
 	if ContainsApp(removeApps, profile.AppOneDrive) {
-		commands = append(commands, newRunSynchronousCommand(len(commands)+1, RemoveOneDriveFilesCommand()))
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, RemoveOneDriveFilesCommand(hidePowerShellWindows)))
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, RemoveOneDriveDefaultUserCommand()))
 	}
 	if cmd := PasswordExpirationCommand(passwordExpiration); cmd != "" {
@@ -204,13 +208,13 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 	if computerNameScript != nil {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, ComputerNameScriptCommand(*computerNameScript)))
 	}
-	for _, cmd := range SystemScriptsCommands(systemScripts) {
+	for _, cmd := range SystemScriptsCommands(systemScripts, hidePowerShellWindows) {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
-	if cmd := DefaultUserScriptCommand(defaultUserScripts); cmd != "" {
+	if cmd := DefaultUserScriptCommand(defaultUserScripts, hidePowerShellWindows); cmd != "" {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
-	if cmd := UserOnceScriptCommand(userOnceScripts); cmd != "" {
+	if cmd := UserOnceScriptCommand(userOnceScripts, hidePowerShellWindows); cmd != "" {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
 	if len(commands) == 0 {
@@ -325,7 +329,7 @@ type ShellSetupOOBE struct {
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
 // firstLogon, express and wifi. It returns nil when there is nothing to
 // configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, deleteWindowsOld bool, keepSensitiveFiles bool, installVMGuestTools []profile.VMGuestTool, obscurePasswords bool, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, deleteWindowsOld bool, keepSensitiveFiles bool, installVMGuestTools []profile.VMGuestTool, obscurePasswords bool, hidePowerShellWindows bool, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -414,18 +418,18 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
 	}
 	if deleteHiddenJunctions {
-		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: DeleteJunctionsFirstLogonCommand()})
+		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: DeleteJunctionsFirstLogonCommand(hidePowerShellWindows)})
 	}
 	if deleteWindowsOld {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: deleteWindowsOldCommand})
 	}
-	for _, cmd := range VMGuestToolsFirstLogonCommands(installVMGuestTools) {
+	for _, cmd := range VMGuestToolsFirstLogonCommands(installVMGuestTools, hidePowerShellWindows) {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
 	}
-	for _, cmd := range FirstLogonScriptsCommands(firstLogonScripts) {
+	for _, cmd := range FirstLogonScriptsCommands(firstLogonScripts, hidePowerShellWindows) {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
 	}
-	if cmd := KeepSensitiveFilesFirstLogonCommand(keepSensitiveFiles); cmd != "" {
+	if cmd := KeepSensitiveFilesFirstLogonCommand(keepSensitiveFiles, hidePowerShellWindows); cmd != "" {
 		flCommands = append(flCommands, synchronousCommand{Action: wcmActionAdd, Order: len(flCommands) + 1, CommandLine: cmd})
 	}
 	if restartExplorerAfterScripts && len(flCommands) > 0 {
