@@ -29,9 +29,12 @@ type standardAttrs struct {
 	XmlnsWcm              string `xml:"xmlns:wcm,attr"`
 }
 
-func newStandardAttrs() standardAttrs {
+func newStandardAttrs(arch profile.ProcessorArchitecture) standardAttrs {
+	if arch == "" {
+		arch = profile.ArchAMD64
+	}
 	return standardAttrs{
-		ProcessorArchitecture: "amd64",
+		ProcessorArchitecture: string(arch),
 		PublicKeyToken:        "31bf3856ad364e35",
 		Language:              "neutral",
 		VersionScope:          "nonSxS",
@@ -55,22 +58,22 @@ type InternationalCore struct {
 }
 
 // NewInternationalCoreWinPE builds the windowsPE-pass component.
-func NewInternationalCoreWinPE(lang profile.LanguageSettings) InternationalCore {
-	return newInternationalCore("Microsoft-Windows-International-Core-WinPE", lang)
+func NewInternationalCoreWinPE(lang profile.LanguageSettings, arch profile.ProcessorArchitecture) InternationalCore {
+	return newInternationalCore("Microsoft-Windows-International-Core-WinPE", lang, arch)
 }
 
 // NewInternationalCoreSpecialize builds the specialize-pass component.
-func NewInternationalCoreSpecialize(lang profile.LanguageSettings) InternationalCore {
-	return newInternationalCore("Microsoft-Windows-International-Core", lang)
+func NewInternationalCoreSpecialize(lang profile.LanguageSettings, arch profile.ProcessorArchitecture) InternationalCore {
+	return newInternationalCore("Microsoft-Windows-International-Core", lang, arch)
 }
 
 // newInternationalCore builds the component from LanguageSettings.
 // KeyboardLayout maps to InputLocale, Locale maps to both SystemLocale and
 // UserLocale.
-func newInternationalCore(name string, lang profile.LanguageSettings) InternationalCore {
+func newInternationalCore(name string, lang profile.LanguageSettings, arch profile.ProcessorArchitecture) InternationalCore {
 	return InternationalCore{
 		Name:          name,
-		standardAttrs: newStandardAttrs(),
+		standardAttrs: newStandardAttrs(arch),
 		InputLocale:   lang.KeyboardLayout,
 		SystemLocale:  lang.Locale,
 		UILanguage:    lang.UILanguage,

@@ -50,22 +50,23 @@ func (s settingsPass) MarshalXML(e *xml.Encoder, _ xml.StartElement) error {
 func BuildAnswerFile(p *profile.Profile) (string, error) {
 	doc := unattendDoc{Xmlns: unattendNamespace}
 
-	winPE := []interface{}{components.NewInternationalCoreWinPE(p.Language)}
-	if setup := components.NewSetup(p.Edition, p.SystemTweaks.BypassWin11Requirements, p.UseNarrator); setup != nil {
+	winPE := []interface{}{components.NewInternationalCoreWinPE(p.Language, p.ProcessorArchitecture)}
+	if setup := components.NewSetup(p.Edition, p.SystemTweaks.BypassWin11Requirements, p.UseNarrator, p.ProcessorArchitecture); setup != nil {
 		winPE = append(winPE, setup)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "windowsPE", Components: winPE})
 
-	specialize := []interface{}{components.NewInternationalCoreSpecialize(p.Language)}
-	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.Timezone, p.ComputerNameScript); shellSpecialize != nil {
+	specialize := []interface{}{components.NewInternationalCoreSpecialize(p.Language, p.ProcessorArchitecture)}
+	activationKey := components.ResolveActivationKey(p.Edition, p.ActivationKey)
+	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.Timezone, p.ComputerNameScript, activationKey, p.ProcessorArchitecture); shellSpecialize != nil {
 		specialize = append(specialize, shellSpecialize)
 	}
-	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.StickyKeys, p.LockKeys, p.DesktopIcons, p.StartFolders, p.AppLockerPolicyXML, p.UseNarrator, p.ComputerNameScript, p.HidePowerShellWindows, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
+	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.StickyKeys, p.LockKeys, p.DesktopIcons, p.StartFolders, p.AppLockerPolicyXML, p.UseNarrator, p.ComputerNameScript, p.HidePowerShellWindows, p.ProcessorArchitecture, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
 		specialize = append(specialize, deployment)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})
 
-	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps, p.RemoveFeatures, p.RemoveOptionalFeatures, p.SystemTweaks.DeleteHiddenJunctions, p.SystemTweaks.DeleteWindowsOld, p.KeepSensitiveFiles, p.InstallVMGuestTools, p.ObscurePasswords, p.HidePowerShellWindows, p.FirstLogonScripts, p.RestartExplorerAfterScripts); shellOOBE != nil {
+	if shellOOBE := components.NewShellSetupOOBE(p.Accounts, p.FirstLogon, p.ExpressSettings, p.Wifi, p.BypassOnlineAccountRequirement, p.RemoveApps, p.RemoveFeatures, p.RemoveOptionalFeatures, p.SystemTweaks.DeleteHiddenJunctions, p.SystemTweaks.DeleteWindowsOld, p.KeepSensitiveFiles, p.InstallVMGuestTools, p.ObscurePasswords, p.HidePowerShellWindows, p.ProcessorArchitecture, p.FirstLogonScripts, p.RestartExplorerAfterScripts); shellOOBE != nil {
 		doc.Settings = append(doc.Settings, settingsPass{Pass: "oobeSystem", Components: []interface{}{shellOOBE}})
 	}
 

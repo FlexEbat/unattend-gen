@@ -50,6 +50,7 @@ func ValidateProfile(data []byte) ValidationResult {
 
 	errs = append(errs, validateLanguage(p.Language)...)
 	errs = append(errs, validateEdition(p.Edition)...)
+	errs = append(errs, validateActivationKey(p.ActivationKey)...)
 	errs = append(errs, validateComputerName(p.ComputerName)...)
 	errs = append(errs, validateTimezone(p.Timezone)...)
 	errs = append(errs, validateAccounts(p.Accounts)...)
@@ -113,6 +114,16 @@ func validateEdition(e EditionSettings) []string {
 		}
 	}
 	return errs
+}
+
+func validateActivationKey(activationKey *string) []string {
+	if activationKey == nil {
+		return nil
+	}
+	if !productKeyRe.MatchString(*activationKey) {
+		return []string{"activation_key должен быть вида XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"}
+	}
+	return nil
 }
 
 // validateTimezone only rejects the empty string: Windows time zone IDs

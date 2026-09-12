@@ -15,6 +15,10 @@ const (
 	EditionModeGenericKey  EditionMode = "generic_key"
 	EditionModeCustomKey   EditionMode = "custom_key"
 	EditionModeInteractive EditionMode = "interactive"
+	// EditionModeFirmware (slice 24, tech.md backlog group D) uses the
+	// product key already embedded in the device's BIOS/UEFI firmware
+	// (common on OEM Windows preinstalls) instead of asking for one.
+	EditionModeFirmware EditionMode = "firmware"
 )
 
 // WindowsEdition is a Windows edition selectable via a built-in generic key.
@@ -27,9 +31,27 @@ const (
 	EditionEnterprise WindowsEdition = "Enterprise"
 )
 
+// ProcessorArchitecture is the target CPU architecture written on every
+// <component> element. Slice 24 (tech.md backlog group D): the reference
+// implementation supports selecting SEVERAL architectures at once (the
+// whole document gets duplicated per architecture, for one answer file
+// that installs on multiple hardware types) — this project intentionally
+// supports only a single architecture per profile. Its struct-based XML
+// builder (not the reference's DOM-based one) would need a much larger
+// rewrite to duplicate every component per architecture; a single value
+// covers the overwhelming majority of real use (one generated image
+// targets one architecture).
+type ProcessorArchitecture string
+
+const (
+	ArchAMD64 ProcessorArchitecture = "amd64"
+	ArchX86   ProcessorArchitecture = "x86"
+	ArchARM64 ProcessorArchitecture = "arm64"
+)
+
 // EditionSettings controls how the Windows edition and product key end up in the answer file.
 type EditionSettings struct {
-	Mode       EditionMode     `json:"mode" validate:"required,oneof=generic_key custom_key interactive"`
+	Mode       EditionMode     `json:"mode" validate:"required,oneof=generic_key custom_key interactive firmware"`
 	Edition    *WindowsEdition `json:"edition"`     // required when Mode == EditionModeGenericKey
 	ProductKey *string         `json:"product_key"` // required when Mode == EditionModeCustomKey
 }
@@ -512,9 +534,11 @@ type Profile struct {
 	Name                           string                     `json:"name" validate:"required"`
 	Language                       LanguageSettings           `json:"language"`
 	Edition                        EditionSettings            `json:"edition"`
-	ComputerName                   *string                    `json:"computer_name"`        // nil = Windows generates a random name
-	ComputerNameScript             *string                    `json:"computer_name_script"` // slice 22: mutually exclusive with ComputerName, see validate.go
-	Timezone                       *string                    `json:"timezone"`             // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
+	ActivationKey                  *string                    `json:"activation_key"`                                                    // slice 24: separate from Edition's install key; nil + EditionModeCustomKey reuses that key
+	ProcessorArchitecture          ProcessorArchitecture      `json:"processor_architecture" validate:"omitempty,oneof=amd64 x86 arm64"` // "" defaults to amd64
+	ComputerName                   *string                    `json:"computer_name"`                                                     // nil = Windows generates a random name
+	ComputerNameScript             *string                    `json:"computer_name_script"`                                              // slice 22: mutually exclusive with ComputerName, see validate.go
+	Timezone                       *string                    `json:"timezone"`                                                          // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
 	Accounts                       []UserAccount              `json:"accounts" validate:"max=5,dive"`
 	FirstLogon                     FirstLogon                 `json:"first_logon"`
 	ExpressSettings                ExpressSettings            `json:"express_settings"`

@@ -25,22 +25,26 @@ type ShellSetupSpecialize struct {
 	standardAttrs
 	ComputerName string `xml:"ComputerName,omitempty"`
 	TimeZone     string `xml:"TimeZone,omitempty"`
+	ProductKey   string `xml:"ProductKey,omitempty"` // slice 24: activation-only key, independent of the windowsPE install key
 }
 
 // NewShellSetupSpecialize builds the specialize-pass component from the
-// computer name and time zone. Returns nil when both are nil: Windows
-// generates a random name and determines the time zone itself.
+// computer name and time zone. Returns nil when there is nothing to set.
 // computerNameScript (slice 22), when set, overrides computerName with the
 // "TEMPNAME" placeholder — ComputerNameScriptCommand overwrites it moments
 // later at runtime; mutual exclusivity with computerName is enforced in
-// validate.go.
-func NewShellSetupSpecialize(computerName, timezone, computerNameScript *string) *ShellSetupSpecialize {
-	if computerName == nil && timezone == nil && computerNameScript == nil {
+// validate.go. activationKey (slice 24), when set, is written as-is; when
+// nil, activationKeyFallback (the edition's own custom key, if any — see
+// resolveActivationKey) is used instead, matching the reference
+// implementation's behavior of reusing the install key for activation too.
+func NewShellSetupSpecialize(computerName, timezone, computerNameScript *string, activationKey string, arch profile.ProcessorArchitecture) *ShellSetupSpecialize {
+	if computerName == nil && timezone == nil && computerNameScript == nil && activationKey == "" {
 		return nil
 	}
 	s := &ShellSetupSpecialize{
 		Name:          shellSetupName,
-		standardAttrs: newStandardAttrs(),
+		standardAttrs: newStandardAttrs(arch),
+		ProductKey:    activationKey,
 	}
 	if computerNameScript != nil {
 		s.ComputerName = "TEMPNAME"
@@ -51,6 +55,22 @@ func NewShellSetupSpecialize(computerName, timezone, computerNameScript *string)
 		s.TimeZone = *timezone
 	}
 	return s
+}
+
+// ResolveActivationKey returns the key NewShellSetupSpecialize should write
+// to Microsoft-Windows-Shell-Setup/ProductKey: activationKey if explicitly
+// set, otherwise the edition's own custom key when Edition.Mode is
+// EditionModeCustomKey (reused for activation too), otherwise "" (nothing
+// to activate with — matches EditionModeGenericKey/Interactive/Firmware,
+// none of which have an activation-worthy key of their own).
+func ResolveActivationKey(edition profile.EditionSettings, activationKey *string) string {
+	if activationKey != nil {
+		return *activationKey
+	}
+	if edition.Mode == profile.EditionModeCustomKey && edition.ProductKey != nil {
+		return *edition.ProductKey
+	}
+	return ""
 }
 
 // Registry edits for the corresponding profile settings. They run in the
@@ -106,7 +126,7 @@ type Deployment struct {
 // DefaultUser scripts and the UserOnce RunOnce registration (in that
 // order). Returns nil when none are set: an empty component is not
 // emitted.
-func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, useNarrator bool, computerNameScript *string, hidePowerShellWindows bool, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
+func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, useNarrator bool, computerNameScript *string, hidePowerShellWindows bool, arch profile.ProcessorArchitecture, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
 	enabledCommands := []struct {
 		enabled bool
 		command string
@@ -222,7 +242,7 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 	}
 	return &Deployment{
 		Name:           "Microsoft-Windows-Deployment",
-		standardAttrs:  newStandardAttrs(),
+		standardAttrs:  newStandardAttrs(arch),
 		RunSynchronous: &runSynchronous{RunSynchronousCommand: commands},
 	}
 }
@@ -329,7 +349,7 @@ type ShellSetupOOBE struct {
 // NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
 // firstLogon, express and wifi. It returns nil when there is nothing to
 // configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, deleteWindowsOld bool, keepSensitiveFiles bool, installVMGuestTools []profile.VMGuestTool, obscurePasswords bool, hidePowerShellWindows bool, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
+func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, deleteWindowsOld bool, keepSensitiveFiles bool, installVMGuestTools []profile.VMGuestTool, obscurePasswords bool, hidePowerShellWindows bool, arch profile.ProcessorArchitecture, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}
@@ -445,7 +465,7 @@ func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstL
 	}
 	return &ShellSetupOOBE{
 		Name:               shellSetupName,
-		standardAttrs:      newStandardAttrs(),
+		standardAttrs:      newStandardAttrs(arch),
 		OOBE:               oobe,
 		UserAccounts:       ua,
 		AutoLogon:          al,

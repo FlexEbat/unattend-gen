@@ -52,8 +52,9 @@ type Setup struct {
 // non-interactive edition mode, so the EULA prompt must not block setup
 // either.
 type UserData struct {
-	ProductKey ProductKey `xml:"ProductKey"`
-	AcceptEula bool       `xml:"AcceptEula"`
+	ProductKey *ProductKey `xml:"ProductKey,omitempty"`
+	AcceptEula bool        `xml:"AcceptEula"`
+	WillShowUI string      `xml:"WillShowUI,omitempty"` // "Never" for EditionModeFirmware — no Key element, use the key already in firmware
 }
 
 // ProductKey is the license key applied during setup.
@@ -64,7 +65,7 @@ type ProductKey struct {
 // NewSetup builds the Microsoft-Windows-Setup component for edition and the
 // Windows 11 bypass flag. It returns nil when there is neither a product key
 // nor a bypass to apply: an empty component is not emitted.
-func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool, useNarrator bool) *Setup {
+func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool, useNarrator bool, arch profile.ProcessorArchitecture) *Setup {
 	key := resolveProductKey(edition)
 
 	var commands []runSynchronousCommand
@@ -79,17 +80,22 @@ func NewSetup(edition profile.EditionSettings, bypassWin11Requirements bool, use
 		runSync = &runSynchronous{RunSynchronousCommand: commands}
 	}
 
-	if key == "" && runSync == nil {
+	if key == "" && runSync == nil && edition.Mode != profile.EditionModeFirmware {
 		return nil
 	}
 
 	s := &Setup{
 		Name:           "Microsoft-Windows-Setup",
-		standardAttrs:  newStandardAttrs(),
+		standardAttrs:  newStandardAttrs(arch),
 		RunSynchronous: runSync,
 	}
-	if key != "" {
-		s.UserData = &UserData{ProductKey: ProductKey{Key: key}, AcceptEula: true}
+	switch {
+	case edition.Mode == profile.EditionModeFirmware:
+		// No Key element at all — tells Setup to use the key already
+		// embedded in the device's BIOS/UEFI firmware.
+		s.UserData = &UserData{AcceptEula: true, WillShowUI: "Never"}
+	case key != "":
+		s.UserData = &UserData{ProductKey: &ProductKey{Key: key}, AcceptEula: true}
 	}
 	return s
 }
