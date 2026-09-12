@@ -10,14 +10,16 @@ import (
 // testComponent captures the fields used by both International-Core and
 // Setup components so a single struct can unmarshal either.
 type testComponent struct {
-	Name         string `xml:"name,attr"`
-	InputLocale  string `xml:"InputLocale"`
-	SystemLocale string `xml:"SystemLocale"`
-	UILanguage   string `xml:"UILanguage"`
-	UserLocale   string `xml:"UserLocale"`
-	ProductKey   *struct {
+	Name                  string `xml:"name,attr"`
+	ProcessorArchitecture string `xml:"processorArchitecture,attr"`
+	InputLocale           string `xml:"InputLocale"`
+	SystemLocale          string `xml:"SystemLocale"`
+	UILanguage            string `xml:"UILanguage"`
+	UserLocale            string `xml:"UserLocale"`
+	ProductKey            *struct {
 		Key string `xml:"Key"`
 	} `xml:"UserData>ProductKey"`
+	WillShowUI            string               `xml:"UserData>WillShowUI"`
 	RunSynchronousCommand []testRunSyncCommand `xml:"RunSynchronous>RunSynchronousCommand"`
 }
 
