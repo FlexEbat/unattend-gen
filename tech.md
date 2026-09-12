@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v25** (2026-09-08)
+**Версия: v26** (2026-09-09)
 
 Changelog:
+- v26 — слайс 24: достижимая часть группы D — `ActivationKey`, `EditionModeFirmware` (BIOS/UEFI ключ), `ProcessorArchitecture` (единственное значение, не мульти-архитектура). Важные находки: «без интернета» дублировал уже реализованный `BypassOnlineAccountRequirement`; 7 других под-пунктов группы D закрыты как «неприменимо при текущем архитектурном решении» (все — части одного механизма замены PE-этапа своим `.cmd`-скриптом, конфликтующего с исключением диск-партиционирования). `UserData.ProductKey` стал указателем. Раздел 4/9.14.
 - v25 — слайс 23: `SystemTweaks.DeleteEdgeDesktopIcon` (28-е поле, побочная находка слайса 20) + `Profile.HidePowerShellWindows` (последний, 6-й пункт группы E — ЗАКРЫТА ПОЛНОСТЬЮ). `invokeCommand` получил параметр `hidden bool`; протащен через 13 функций в 5 файлах (`scripts.go`, `apps.go`, `misc.go`, `optimizations.go`, `vmapplocker.go`) + сигнатуры `NewDeployment`/`NewShellSetupOOBE`. Раздел 9.3/9.13.
 - v24 — слайс 22 (tech.md backlog group E, 5/6, ЗАКРЫТА почти полностью): новый файл `internal/xmlgen/components/misc.go`. `Profile.KeepSensitiveFiles` — единственное поле в схеме, где zero value вызывает действие (удаление), а не «ничего не менять» — сознательное отступление от общей конвенции, задокументировано и защищено тестовой фикстурой `baseProfile()` (там явно `true`). `UseNarrator`, `ComputerNameScript` (взаимоисключимо с `ComputerName`), `ObscurePasswords` (новый helper `newPasswordElement`, заменил 4 места конструирования пароля), `WifiSettings.RawProfileXML`. Экран Advanced расширен, экран Wifi получил raw-режим.
 - v23 — слайс 21 (tech.md backlog group C, +3/9, ЗАКРЫТА ПОЛНОСТЬЮ 9/9): новый файл `internal/xmlgen/components/vmapplocker.go` (VM guest tools + AppLocker), новый тип `Profile.InstallVMGuestTools []VMGuestTool` + `Profile.AppLockerPolicyXML *string`, `SystemTweaks.DisableCoreIsolation` (27-е поле), новый экран `screens.ScreenAdvanced` между Desktop и Scripts. AppLocker валидируется только на well-formedness XML, без XSD-схемы (сознательное упрощение, задокументировано в 9.11). Замечено, но не взято: `TaskbarAl`/left-align таскбара (простой reg add, в бэклоге группы Start menu/taskbar).
@@ -152,7 +153,9 @@ type Profile struct {
 Ключевые вложенные типы (полные определения — в `schema.go`, здесь только контракт, который нельзя менять без ревизии версии файла):
 
 - `LanguageSettings{UILanguage, Locale, KeyboardLayout string}` — все три обязательны, формат BCP-47.
-- `EditionSettings{Mode: generic_key|custom_key|interactive, Edition *WindowsEdition, ProductKey *string}`.
+- `EditionSettings{Mode: generic_key|custom_key|interactive|firmware, Edition *WindowsEdition, ProductKey *string}` — `firmware` (слайс 24) использует ключ, уже встроенный в BIOS/UEFI прошивку устройства (типично для OEM-предустановок), без каких-либо доп. полей.
+- `Profile.ActivationKey *string` (слайс 24) — отдельный ключ ТОЛЬКО для активации (`Microsoft-Windows-Shell-Setup/ProductKey`, specialize), независимый от установочного ключа выше (`UserData/ProductKey`, windowsPE). `nil` + `Edition.Mode=custom_key` переиспользует тот ключ для активации тоже (как было и раньше, теперь явно через `components.ResolveActivationKey`); `nil` при остальных режимах — ничего не пишется.
+- `Profile.ProcessorArchitecture ProcessorArchitecture` (слайс 24) — `amd64|x86|arm64`, `""` = `amd64` по умолчанию. Сознательное упрощение относительно сайта-эталона: тот поддерживает НЕСКОЛЬКО архитектур в одном XML (весь документ дублируется на каждую) — у нас XML собирается из типизированных Go-структур, а не пост-обработкой DOM, так что честная поддержка мульти-архитектуры потребовала бы отдельного крупного рефакторинга сериализации; выбрано единственное значение, покрывающее подавляющее большинство реальных сценариев (один образ — одна архитектура).
 - `UserAccount{Name string (≤20), DisplayName *string, Password *string (nil=без пароля, "" запрещено), Group: Administrators|Users}`.
 - `FirstLogon{Mode: first_created_account|builtin_administrator|none, BuiltinAdministratorPassword *string}`.
 - `ExpressSettings{Mode: all_disabled|all_enabled|interactive}`.
@@ -389,6 +392,18 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 Группа E бэклога закрыта полностью (6/6).
 
+### 9.14 Group D — достижимая часть (слайс 24): активационный ключ, BIOS/UEFI ключ, архитектура процессора
+
+**Важная находка при исследовании этого слайса, меняющая прошлый аудит:** «Allow Windows 11 to be installed without internet connection» из группы D — это НЕ отдельный, нереализованный механизм. У эталона (`modifier/Bypass.cs`, `Configuration.BypassNetworkCheck`) он пишет ровно тот же `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE\BypassNRO`, что наш `BypassOnlineAccountRequirement` уже делает с самого слайса 7. Пункт был задвоен в первоначальном аудите — исправлено здесь, не отдельная задача.
+
+**Ещё одна находка, сузившая скоуп группы D до трёх пунктов.** Изучение `modifier/Disk.cs` показало: `Disable 8.3 filenames`, `Disable Defender in PE`, паузы перед разметкой/перезагрузкой, `compact`-режим, `skip integrity check`, выбор образа по имени/индексу и `$OEM$` distribution share — ВСЕ они являются частью ОДНОГО механизма эталона (`GeneratePESettings`/`CustomPESettings`): полной замены windowsPE-этапа собственным `.cmd`-скриптом, который сам делает `diskpart`-разметку, `dism /Apply-Image` и `bcdboot`. Это прямо конфликтует с явным исключением диск-партиционирования из скоупа проекта (раздел 1, «Windows Setup всегда спрашивает интерактивно, куда ставить»). Ни один из этих под-пунктов не достижим независимо от остальных без сначала реализации полной замены PE-этапа — что осталось явно исключено. Это НЕ рекатегоризация одного пункта, а закрытие сразу семи пунктов бэклога группы D как «неприменимо при данном архитектурном решении», а не «сделать позже».
+
+Реально достижимые и реализованные в этом слайсе:
+
+- **Activation Key** (`Profile.ActivationKey *string`) — `Microsoft-Windows-Shell-Setup/ProductKey` (specialize) — отдельный XML-элемент, независимый от `UserData/ProductKey` (windowsPE), который используется только для выбора образа/показа UI на этапе установки. `components.ResolveActivationKey(edition, activationKey)`: явный `ActivationKey` побеждает; иначе, если `Edition.Mode=custom_key`, переиспользуется тот же ключ (совпадает с прежним поведением, теперь оформлено явной функцией); иначе — пусто, элемент не пишется (`ShellSetupSpecialize.ProductKey` с `omitempty`).
+- **BIOS/UEFI stored key** (`EditionSettings.Mode=firmware`) — `UserData` без `ProductKey`-элемента вообще, `WillShowUI=Never`, `AcceptEula=true`. `UserData.ProductKey` стал указателем (`*ProductKey`, `omitempty`) для этого случая — раньше был обязательным полем.
+- **Processor architecture** (`Profile.ProcessorArchitecture`) — `newStandardAttrs(arch)` теперь принимает архитектуру вместо жёстко зашитого `"amd64"`; протащено через 6 конструкторов, несущих `standardAttrs` (`NewInternationalCoreWinPE`/`Specialize`, `NewSetup`, `NewShellSetupSpecialize`, `NewDeployment`, `NewShellSetupOOBE`). Мульти-архитектура (несколько значений в одном XML, как у эталона) сознательно не реализована — см. раздел 4.
+
 ---
 
 ## 10. Сборка и проверки (заморожен)
@@ -488,6 +503,7 @@ CONTRACT GAP
 - **21**: AppLocker + VM guest tools + `DisableCoreIsolation` (tech.md backlog group C, +3/9, 9/9 закрыта полностью). Новый файл `internal/xmlgen/components/vmapplocker.go`, новый экран `screens.ScreenAdvanced` (между Desktop и Scripts). `InstallVMGuestTools []VMGuestTool` (4 ps1-скрипта дословно из эталона, каждый — отдельная FirstLogonCommand), `AppLockerPolicyXML *string` (raw XML, only well-formedness validated, не XSD), `SystemTweaks.DisableCoreIsolation` (27-й твик). Group C бэклога закрыта полностью.
 - **22**: 5 из 6 пунктов Group E — `KeepSensitiveFiles` (единственное поле-исключение из конвенции «zero value ничего не меняет», задокументировано и защищено в тестовой фикстуре), `UseNarrator` (windowsPE+specialize+UserOnce), `ComputerNameScript` (взаимоисключимо с `ComputerName`, фоновый процесс из `SetComputerName.ps1` дословно), `ObscurePasswords` (Base64/UTF-16LE, stdlib, новый helper `newPasswordElement` заменил все 4 места конструирования пароля), `WifiSettings.RawProfileXML`. Экран Advanced расширен (2 текстовых поля + 3 чекбокса), экран Wifi получил переключатель raw-режима. Новый файл `internal/xmlgen/components/misc.go`. 6-й пункт (глобальный Hide PowerShell windows) сознательно не взят — инвазивный рефакторинг сигнатур, отдельный пункт бэклога.
 - **23**: `DeleteEdgeDesktopIcon` (28-й SystemTweak, побочная находка слайса 20) + глобальный `HidePowerShellWindows` (последний пункт группы E, ЗАКРЫТА ПОЛНОСТЬЮ 6/6). `invokeCommand` получил параметр `hidden bool`, протащен через 13 функций в 5 файлах + сигнатуры `NewDeployment`/`NewShellSetupOOBE`. Затрагивает встроенные твики и пользовательские скрипты одинаково.
+- **24**: достижимая часть группы D — `ActivationKey`, `EditionModeFirmware`, `ProcessorArchitecture`. По ходу исследования выяснено: «без интернета» дублировал уже реализованный `BypassOnlineAccountRequirement` (не отдельная задача), а 7 других под-пунктов группы D (8.3-имена, Defender-в-PE, паузы, compact, skip integrity, выбор образа, `$OEM$`) — все части одного механизма замены PE-этапа своим `.cmd`-скриптом с diskpart/dism, конфликтующего с исключением диск-партиционирования (раздел 1) — закрыты как «неприменимо», не как «сделать позже». `UserData.ProductKey` стал указателем (`omitempty`) для режима firmware. `newStandardAttrs` принимает архитектуру, протащено через 6 конструкторов.
 
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
@@ -509,19 +525,19 @@ CONTRACT GAP
 - **Visual effects** — полный набор чекбоксов производительности/анимации (уже был в старом бэклоге под общим названием «визуальные эффекты»).
 - ~~Delete Edge desktop icon~~ — закрыто в слайсе 23 (`SystemTweaks.DeleteEdgeDesktopIcon`, см. раздел 9.3/9.13).
 
-**Группа D — Windows PE / установка образа (другой pass, другая часть жизненного цикла).**
-Не было в старом бэклоге вообще, обнаружено при этом аудите:
-- Использовать ключ активации, сохранённый в BIOS/UEFI прошивке (не вводить заново).
-- Свой `.cmd`-скрипт для полного PE-этапа (партиционирование + применение образа вручную) — конфликтует с явным исключением диск-партиционирования из скоупа (раздел 1), нужно решить отдельно, скорее всего не брать.
-- Отключение 8.3-имён файлов (`fsutil 8dot3name`).
-- Отключение Windows Defender на этапе PE (через загрузку куста SYSTEM и правку `Start`-значений сервисов).
-- Паузы перед разметкой диска / перед финальной перезагрузкой PE-этапа.
-- Compact-режим применения образа, пропуск `/CheckIntegrity /Verify`.
-- Выбор образа для установки по имени/индексу внутри .wim, а не только по edition.
-- Отдельное поле продукт-ключа только для **активации** (независимо от ключа установки).
-- Выбор нескольких **processor architectures** в одном XML (x86/x64/ARM64).
-- `Allow Windows 11 to be installed without internet connection` — отдельный чекбокс PE-этапа, НЕ совпадает по механизму с существующим `BypassOnlineAccountRequirement` (тот — про OOBE-экраны после установки, этот — про сам Windows Setup).
-- `$OEM$` distribution share / configuration set — копирование содержимого папки `$OEM$` на целевой диск.
+**Группа D — Windows PE / установка образа. ЗАКРЫТА почти полностью в слайсе 24 (3 достижимых пункта сделаны, 7 закрыты как «неприменимо», 1 был задвоением уже реализованного).**
+- ~~Использовать ключ активации, сохранённый в BIOS/UEFI прошивке~~ — сделано в слайсе 24 (`EditionSettings.Mode=firmware`).
+- ~~Отдельное поле продукт-ключа только для активации~~ — сделано в слайсе 24 (`Profile.ActivationKey`).
+- ~~Выбор processor architecture~~ — сделано в слайсе 24 (`Profile.ProcessorArchitecture`), но только ОДНО значение за раз — множественная архитектура в одном XML (как у эталона) сознательно не реализована, см. раздел 4/9.14.
+- ~~`Allow Windows 11 to be installed without internet connection`~~ — это оказалось задвоением уже реализованного `BypassOnlineAccountRequirement` (тот же `BypassNRO`), не отдельная задача. Исправлено в слайсе 24, раздел 9.14.
+- **Неприменимо при текущем архитектурном решении** (все 7 пунктов — части одного механизма замены PE-этапа своим `.cmd`-скриптом с diskpart/dism/bcdboot, что конфликтует с исключением диск-партиционирования, раздел 1 — не «сделать позже», а закрыто как неприменимое, см. 9.14 для деталей):
+  - Свой `.cmd`-скрипт для полного PE-этапа (партиционирование + применение образа вручную).
+  - Отключение 8.3-имён файлов (`fsutil 8dot3name`).
+  - Отключение Windows Defender на этапе PE.
+  - Паузы перед разметкой диска / перед финальной перезагрузкой PE-этапа.
+  - Compact-режим применения образа, пропуск `/CheckIntegrity /Verify`.
+  - Выбор образа для установки по имени/индексу внутри .wim.
+  - `$OEM$` distribution share / configuration set.
 
 **Группа E — прочие setup-settings и мелкие механизмы. ЗАКРЫТА ПОЛНОСТЬЮ (6/6) в слайсах 22–23.**
 
