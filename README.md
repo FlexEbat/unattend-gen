@@ -14,6 +14,8 @@ no matter how it was filled in.
 ## Features
 
 - Language, locale, keyboard layout, Windows edition and product key
+  (including BIOS/UEFI-firmware-stored keys and a separate activation-only
+  key), and target processor architecture (x64/x86/ARM64)
 - Computer name, time zone, and up to 5 local accounts, with auto-logon control
 - Express settings (telemetry) and 28 system tweaks (Windows Update, UAC,
   Windows 11 hardware-check bypass, SmartScreen, Fast Startup, System Restore,
