@@ -9,8 +9,10 @@ import (
 
 type testShellComponent struct {
 	Name                  string               `xml:"name,attr"`
+	ProcessorArchitecture string               `xml:"processorArchitecture,attr"`
 	ComputerName          string               `xml:"ComputerName"`
 	TimeZone              string               `xml:"TimeZone"`
+	ProductKey            string               `xml:"ProductKey"`
 	LocalAccounts         []testLocalAccount   `xml:"UserAccounts>LocalAccounts>LocalAccount"`
 	AdministratorPassword *testPassword        `xml:"UserAccounts>AdministratorPassword"`
 	AutoLogon             *testAutoLogon       `xml:"AutoLogon"`
