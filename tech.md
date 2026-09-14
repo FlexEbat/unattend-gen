@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v26** (2026-09-09)
+**Версия: v27** (2026-09-10)
 
 Changelog:
+- v27 — слайс 25: Visual Effects (раздел сайта вне исходных 6 групп) — новый файл `internal/xmlgen/components/visualeffects.go`, новый экран `screens.ScreenVisualEffects` (между Desktop и Advanced), `Profile.VisualEffects VisualEffectsSettings` (4 режима, 17 эффектов). Побутно найден и исправлен баг слайса 21: `ScreenAdvanced` отсутствовал в `rebuildScreen`, переход туда всегда показывал Review. Раздел 4/9.15.
 - v26 — слайс 24: достижимая часть группы D — `ActivationKey`, `EditionModeFirmware` (BIOS/UEFI ключ), `ProcessorArchitecture` (единственное значение, не мульти-архитектура). Важные находки: «без интернета» дублировал уже реализованный `BypassOnlineAccountRequirement`; 7 других под-пунктов группы D закрыты как «неприменимо при текущем архитектурном решении» (все — части одного механизма замены PE-этапа своим `.cmd`-скриптом, конфликтующего с исключением диск-партиционирования). `UserData.ProductKey` стал указателем. Раздел 4/9.14.
 - v25 — слайс 23: `SystemTweaks.DeleteEdgeDesktopIcon` (28-е поле, побочная находка слайса 20) + `Profile.HidePowerShellWindows` (последний, 6-й пункт группы E — ЗАКРЫТА ПОЛНОСТЬЮ). `invokeCommand` получил параметр `hidden bool`; протащен через 13 функций в 5 файлах (`scripts.go`, `apps.go`, `misc.go`, `optimizations.go`, `vmapplocker.go`) + сигнатуры `NewDeployment`/`NewShellSetupOOBE`. Раздел 9.3/9.13.
 - v24 — слайс 22 (tech.md backlog group E, 5/6, ЗАКРЫТА почти полностью): новый файл `internal/xmlgen/components/misc.go`. `Profile.KeepSensitiveFiles` — единственное поле в схеме, где zero value вызывает действие (удаление), а не «ничего не менять» — сознательное отступление от общей конвенции, задокументировано и защищено тестовой фикстурой `baseProfile()` (там явно `true`). `UseNarrator`, `ComputerNameScript` (взаимоисключимо с `ComputerName`), `ObscurePasswords` (новый helper `newPasswordElement`, заменил 4 места конструирования пароля), `WifiSettings.RawProfileXML`. Экран Advanced расширен, экран Wifi получил raw-режим.
@@ -76,7 +77,7 @@ internal/
     app.go                           NewModel, Model (bubbletea), таблица screens.ID → tea.Model
     screens/
       welcome.go, language.go, accounts.go, tweaks.go, wifi.go,
-      apps.go, personalization.go, accessibility.go, desktop.go, advanced.go, scripts.go, review.go
+      apps.go, personalization.go, accessibility.go, desktop.go, visualeffects.go, advanced.go, scripts.go, review.go
       nav.go                         screens.ID, навигационные сообщения
     widgets/
       labeled_input.go, password_input.go, labeled_select.go,
@@ -99,6 +100,7 @@ internal/
       accessibility.go               Sticky Keys + Lock Keys (default-user hive + HKU\.DEFAULT + Scancode Map)
       startmenu.go                   Desktop Icons + Folders on Start (RunOnce → живой HKCU нового аккаунта)
       vmapplocker.go                 VM guest tools (4 ps1-скрипта) + AppLocker (Set-AppLockerPolicy)
+      visualeffects.go               Visual effects presets (best appearance/performance/custom, слайс 25)
       misc.go                        Keep sensitive files, Narrator, ComputerNameScript (слайс 22)
     builder_*_test.go                по одному файлу тестов на каждый компонент/срез функциональности
 presets/
@@ -156,6 +158,7 @@ type Profile struct {
 - `EditionSettings{Mode: generic_key|custom_key|interactive|firmware, Edition *WindowsEdition, ProductKey *string}` — `firmware` (слайс 24) использует ключ, уже встроенный в BIOS/UEFI прошивку устройства (типично для OEM-предустановок), без каких-либо доп. полей.
 - `Profile.ActivationKey *string` (слайс 24) — отдельный ключ ТОЛЬКО для активации (`Microsoft-Windows-Shell-Setup/ProductKey`, specialize), независимый от установочного ключа выше (`UserData/ProductKey`, windowsPE). `nil` + `Edition.Mode=custom_key` переиспользует тот ключ для активации тоже (как было и раньше, теперь явно через `components.ResolveActivationKey`); `nil` при остальных режимах — ничего не пишется.
 - `Profile.ProcessorArchitecture ProcessorArchitecture` (слайс 24) — `amd64|x86|arm64`, `""` = `amd64` по умолчанию. Сознательное упрощение относительно сайта-эталона: тот поддерживает НЕСКОЛЬКО архитектур в одном XML (весь документ дублируется на каждую) — у нас XML собирается из типизированных Go-структур, а не пост-обработкой DOM, так что честная поддержка мульти-архитектуры потребовала бы отдельного крупного рефакторинга сериализации; выбрано единственное значение, покрывающее подавляющее большинство реальных сценариев (один образ — одна архитектура).
+- `VisualEffectsSettings{Mode: default|best_appearance|best_performance|custom, Custom map[VisualEffect]bool}` (слайс 25) — 17 значений `VisualEffect` (`profile.VisualEffects`); `Custom` значим только при `Mode=custom`, необозначенные эффекты сохраняют дефолт Windows.
 - `UserAccount{Name string (≤20), DisplayName *string, Password *string (nil=без пароля, "" запрещено), Group: Administrators|Users}`.
 - `FirstLogon{Mode: first_created_account|builtin_administrator|none, BuiltinAdministratorPassword *string}`.
 - `ExpressSettings{Mode: all_disabled|all_enabled|interactive}`.
@@ -239,13 +242,14 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 ## 7. TUI: экраны и виджеты (заморожен)
 
-Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Desktop → Advanced → Scripts → Review**.
+Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Desktop → VisualEffects → Advanced → Scripts → Review**.
 
 - Каждый экран — отдельный `tea.Model` в `internal/tui/screens/*.go`, общий `*profile.Profile` передаётся через `rebuildScreen` при каждой навигации, так экран всегда синхронизирован с последним состоянием.
 - `screens.ScreenApps` — совмещённый экран: чекбоксы удаляемых приложений (`RemoveApps`), удаляемых DISM-компонентов (`RemoveFeatures`) и удаляемых legacy optional features (`RemoveOptionalFeatures`, слайс 17) — три разных механизма, одна таблица фокуса (`internal/tui/screens/apps.go`, `checkboxAt`).
 - `screens.ScreenAccessibility` (слайс 19) — Sticky Keys (select + до 6 чекбоксов, только когда `mode=custom`) и Lock Keys (чекбокс «настраивать» + 6 select'ов, видны только если включён — `nil` `LockKeys` иначе, как на сайте-эталоне). Между Personalization и Scripts.
 - `screens.ScreenDesktop` (слайс 20) — видимость значков рабочего стола (мастер-чекбокс «настраивать»: выключен = `nil` `DesktopIcons`, включён = все 13 значков получают явный чекбокс) + закреплённые папки на Start (`StartFolders`, простой список без мастер-чекбокса — пустой список сам по себе уже значит «не трогать», доп. переключатель не нужен). Между Accessibility и Scripts.
-- `screens.ScreenAdvanced` (слайс 21, расширен в слайсе 22) — чекбоксы 4 наборов гостевых дополнений ВМ (`InstallVMGuestTools`) + `widgets.LabeledTextArea` для сырого AppLocker policy XML + `widgets.LabeledTextArea` для `ComputerNameScript` + 3 чекбокса (`KeepSensitiveFiles`, `UseNarrator`, `ObscurePasswords`). Пусто/не отмечено = `nil`/`false`, как везде в проекте. Между Desktop и Scripts.
+- `screens.ScreenVisualEffects` (слайс 25) — select режима (default/best_appearance/best_performance/custom) + 17 чекбоксов, видны только при `mode=custom`. Выбор режима custom всегда пишет явное значение для ВСЕХ 17 эффектов (не частичную карту) — тот же принцип «выбор режима подразумевает весь набор», что и у видимости значков рабочего стола на экране Desktop. Между Desktop и Advanced.
+- `screens.ScreenAdvanced` (слайс 21, расширен в слайсе 22) — чекбоксы 4 наборов гостевых дополнений ВМ (`InstallVMGuestTools`) + `widgets.LabeledTextArea` для сырого AppLocker policy XML + `widgets.LabeledTextArea` для `ComputerNameScript` + 3 чекбокса (`KeepSensitiveFiles`, `UseNarrator`, `ObscurePasswords`). Пусто/не отмечено = `nil`/`false`, как везде в проекте. Между VisualEffects и Scripts.
 - `screens.ScreenWifi` (расширен в слайсе 22) — чекбокс «настроить Wi-Fi», затем чекбокс «raw XML вместо ручных полей» (`rawMode`): включён — показывает только `widgets.LabeledTextArea` для `WifiSettings.RawProfileXML`, ручные поля (SSID/auth/password/hidden) скрыты и не участвуют; выключен — старое поведение без изменений.
 - `screens.ScreenTweaks` — самый нагруженный экран: express settings, 17 чекбоксов `SystemTweaks`, политика истечения пароля, политика блокировки аккаунта, настройки File Explorer. Число полей и индекс фокуса вычисляются динамически (условные блоки появляются только когда соответствующий Mode = custom).
 - `screens.ScreenAccounts` — также несёт `Timezone` и `BypassOnlineAccountRequirement`, не только таблицу аккаунтов.
@@ -404,6 +408,16 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 - **BIOS/UEFI stored key** (`EditionSettings.Mode=firmware`) — `UserData` без `ProductKey`-элемента вообще, `WillShowUI=Never`, `AcceptEula=true`. `UserData.ProductKey` стал указателем (`*ProductKey`, `omitempty`) для этого случая — раньше был обязательным полем.
 - **Processor architecture** (`Profile.ProcessorArchitecture`) — `newStandardAttrs(arch)` теперь принимает архитектуру вместо жёстко зашитого `"amd64"`; протащено через 6 конструкторов, несущих `standardAttrs` (`NewInternationalCoreWinPE`/`Specialize`, `NewSetup`, `NewShellSetupSpecialize`, `NewDeployment`, `NewShellSetupOOBE`). Мульти-архитектура (несколько значений в одном XML, как у эталона) сознательно не реализована — см. раздел 4.
 
+### 9.15 Visual Effects (`visualeffects.go`, слайс 25)
+
+Раздел сайта вне исходных 6 групп аудита, реализован полностью. Механизм сверен с `modifier/Optimizations.cs` эталона.
+
+- 4 режима: `default` (ничего не менять), `best_appearance` (все 17 эффектов включены), `best_performance` (все выключены), `custom` (карта `map[VisualEffect]bool`, только перечисленные эффекты).
+- Две команды, обе — `Microsoft-Windows-Deployment` (specialize): `VisualEffectsSpecializeCommand` пишет `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects\{Имя}\DefaultValue` (0/1) для каждого перечисленного эффекта — это шаблон, который Windows копирует в настройки НОВОГО аккаунта при первом создании его профиля, поэтому действует на все будущие аккаунты, не только на созданный при установке. `VisualEffectsUserOnceCommand` — тот же RunOnce→живой-HKCU паттерн, что и Desktop Icons (слайс 20): ставит `HKCU\...\Explorer\VisualEffects\VisualFXSetting` = 1 (best appearance) / 2 (best performance) / 3 (custom) — значение, которое диалог «Параметры быстродействия» показывает как выбранный пресет для ТЕКУЩЕГО аккаунта в момент первого входа.
+- 17 значений `VisualEffect` — имена ключей реестра совпадают с именами констант дословно (`ControlAnimations`, `AnimateMinMax`, ..., `DropShadow`), взяты из `enum Effect` эталона без изменений.
+
+Побочная находка при работе над этим слайсом: `screens.ScreenAdvanced` отсутствовал как `case` в `rebuildScreen` (`internal/tui/app.go`) с самого слайса 21 — переход на этот экран (`Ctrl+N` с Desktop) всегда ошибочно показывал Review вместо Advanced. Исправлено попутно при добавлении `ScreenVisualEffects` в тот же switch.
+
 ---
 
 ## 10. Сборка и проверки (заморожен)
@@ -504,6 +518,7 @@ CONTRACT GAP
 - **22**: 5 из 6 пунктов Group E — `KeepSensitiveFiles` (единственное поле-исключение из конвенции «zero value ничего не меняет», задокументировано и защищено в тестовой фикстуре), `UseNarrator` (windowsPE+specialize+UserOnce), `ComputerNameScript` (взаимоисключимо с `ComputerName`, фоновый процесс из `SetComputerName.ps1` дословно), `ObscurePasswords` (Base64/UTF-16LE, stdlib, новый helper `newPasswordElement` заменил все 4 места конструирования пароля), `WifiSettings.RawProfileXML`. Экран Advanced расширен (2 текстовых поля + 3 чекбокса), экран Wifi получил переключатель raw-режима. Новый файл `internal/xmlgen/components/misc.go`. 6-й пункт (глобальный Hide PowerShell windows) сознательно не взят — инвазивный рефакторинг сигнатур, отдельный пункт бэклога.
 - **23**: `DeleteEdgeDesktopIcon` (28-й SystemTweak, побочная находка слайса 20) + глобальный `HidePowerShellWindows` (последний пункт группы E, ЗАКРЫТА ПОЛНОСТЬЮ 6/6). `invokeCommand` получил параметр `hidden bool`, протащен через 13 функций в 5 файлах + сигнатуры `NewDeployment`/`NewShellSetupOOBE`. Затрагивает встроенные твики и пользовательские скрипты одинаково.
 - **24**: достижимая часть группы D — `ActivationKey`, `EditionModeFirmware`, `ProcessorArchitecture`. По ходу исследования выяснено: «без интернета» дублировал уже реализованный `BypassOnlineAccountRequirement` (не отдельная задача), а 7 других под-пунктов группы D (8.3-имена, Defender-в-PE, паузы, compact, skip integrity, выбор образа, `$OEM$`) — все части одного механизма замены PE-этапа своим `.cmd`-скриптом с diskpart/dism, конфликтующего с исключением диск-партиционирования (раздел 1) — закрыты как «неприменимо», не как «сделать позже». `UserData.ProductKey` стал указателем (`omitempty`) для режима firmware. `newStandardAttrs` принимает архитектуру, протащено через 6 конструкторов.
+- **25**: Visual Effects (раздел сайта вне исходных 6 групп аудита) — новый файл `internal/xmlgen/components/visualeffects.go`, новый экран `screens.ScreenVisualEffects` (между Desktop и Advanced). 4 режима, 17 индивидуальных эффектов, тот же RunOnce→живой-HKCU паттерн, что Desktop Icons. Попутно найден и исправлен баг с слайса 21: `ScreenAdvanced` отсутствовал в `rebuildScreen`, переход туда показывал Review вместо Advanced.
 
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
@@ -520,9 +535,9 @@ CONTRACT GAP
 
 **Группа B — оставшиеся System tweaks — ЗАКРЫТА полностью в слайсе 18.**
 
-**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI). ЗАКРЫТА ПОЛНОСТЬЮ в слайсах 19–21 (Lock keys, Sticky keys, Desktop icons, Folders on Start, VM guest tools, VM host core isolation, AppLocker). Start menu/taskbar и Visual effects были заявлены отдельно от исходного 9-пунктового списка группы — остаются открытыми ниже.**
+**Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI). ЗАКРЫТА ПОЛНОСТЬЮ в слайсах 19–21 (Lock keys, Sticky keys, Desktop icons, Folders on Start, VM guest tools, VM host core isolation, AppLocker). Start menu/taskbar был заявлен отдельно от исходного 9-пунктового списка группы, остаётся открытым ниже; Visual effects (тоже был заявлен отдельно) закрыт в слайсе 25.**
 - **Start menu and taskbar** — самый крупный из отсутствующих разделов: режим отображения поля поиска в таскбаре, конфигурация закреплённых иконок таскбара через XML, отключение виджетов, left-align таскбара (Win11, простой reg add `TaskbarAl=0` в default-user hive — замечен рядом с VM tools кодом в слайсе 21, дешёвый кандидат), скрытие кнопки Task View, «always show tray icons», отключение Bing-результатов в поиске, плитки Start (Win10) и pins (Win11) через XML/JSON — НЕ то же самое, что закрытые в слайсе 20 «Folders on Start» (папки у кнопки питания).
-- **Visual effects** — полный набор чекбоксов производительности/анимации (уже был в старом бэклоге под общим названием «визуальные эффекты»).
+- ~~Visual effects~~ — закрыто в слайсе 25 (`Profile.VisualEffects`, раздел 9.15).
 - ~~Delete Edge desktop icon~~ — закрыто в слайсе 23 (`SystemTweaks.DeleteEdgeDesktopIcon`, см. раздел 9.3/9.13).
 
 **Группа D — Windows PE / установка образа. ЗАКРЫТА почти полностью в слайсе 24 (3 достижимых пункта сделаны, 7 закрыты как «неприменимо», 1 был задвоением уже реализованного).**

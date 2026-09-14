@@ -40,6 +40,8 @@ no matter how it was filled in.
   to every account, including future ones
 - Personalization colors (light/dark theme, accent color, transparency,
   solid-color wallpaper) — same every-account mechanism
+- Visual effects presets (best appearance, best performance, or 17
+  individual toggles) applied to every future account
 - Sticky Keys (default/disabled/custom) and lock key (Caps/Num/Scroll)
   initial state and behavior, applied both to future accounts and the
   current session/lock screen
