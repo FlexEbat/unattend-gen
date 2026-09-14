@@ -149,7 +149,7 @@ func (a Advanced) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, Navigate(ScreenScripts)
 		case "esc":
 			a.sync()
-			return a, Navigate(ScreenDesktop)
+			return a, Navigate(ScreenVisualEffects)
 		case "ctrl+r":
 			a.sync()
 			return a, Navigate(ScreenReview)

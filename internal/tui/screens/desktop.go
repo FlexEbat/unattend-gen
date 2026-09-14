@@ -149,7 +149,7 @@ func (d Desktop) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return d, nil
 		case "ctrl+n":
 			d.sync()
-			return d, Navigate(ScreenAdvanced)
+			return d, Navigate(ScreenVisualEffects)
 		case "esc":
 			d.sync()
 			return d, Navigate(ScreenAccessibility)
