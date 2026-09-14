@@ -61,7 +61,7 @@ func BuildAnswerFile(p *profile.Profile) (string, error) {
 	if shellSpecialize := components.NewShellSetupSpecialize(p.ComputerName, p.Timezone, p.ComputerNameScript, activationKey, p.ProcessorArchitecture); shellSpecialize != nil {
 		specialize = append(specialize, shellSpecialize)
 	}
-	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.StickyKeys, p.LockKeys, p.DesktopIcons, p.StartFolders, p.AppLockerPolicyXML, p.UseNarrator, p.ComputerNameScript, p.HidePowerShellWindows, p.ProcessorArchitecture, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
+	if deployment := components.NewDeployment(p.SystemTweaks, p.BypassOnlineAccountRequirement, p.PasswordExpiration, p.AccountLockout, p.FileExplorer, p.Personalization, p.RemoveApps, p.StickyKeys, p.LockKeys, p.DesktopIcons, p.StartFolders, p.AppLockerPolicyXML, p.UseNarrator, p.ComputerNameScript, p.HidePowerShellWindows, p.ProcessorArchitecture, p.VisualEffects, p.SystemScripts, p.DefaultUserScripts, p.UserOnceScripts); deployment != nil {
 		specialize = append(specialize, deployment)
 	}
 	doc.Settings = append(doc.Settings, settingsPass{Pass: "specialize", Components: specialize})

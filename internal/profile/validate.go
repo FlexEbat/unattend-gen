@@ -66,6 +66,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateAccountLockout(p.AccountLockout)...)
 	errs = append(errs, validateStickyKeys(p.StickyKeys)...)
 	errs = append(errs, validateDesktopIcons(p.DesktopIcons)...)
+	errs = append(errs, validateVisualEffects(p.VisualEffects)...)
 	errs = append(errs, validateStartFolders(p.StartFolders)...)
 	errs = append(errs, validateInstallVMGuestTools(p.InstallVMGuestTools)...)
 	errs = append(errs, validateAppLockerPolicyXML(p.AppLockerPolicyXML)...)
@@ -352,6 +353,26 @@ func validateDesktopIcons(icons map[DesktopIcon]bool) []string {
 		}
 		if !known {
 			errs = append(errs, "Неизвестный значок рабочего стола: "+string(icon))
+		}
+	}
+	return errs
+}
+
+func validateVisualEffects(s VisualEffectsSettings) []string {
+	if s.Mode != VisualEffectsModeCustom {
+		return nil
+	}
+	var errs []string
+	for effect := range s.Custom {
+		known := false
+		for _, allowed := range VisualEffects {
+			if effect == allowed {
+				known = true
+				break
+			}
+		}
+		if !known {
+			errs = append(errs, "Неизвестный визуальный эффект: "+string(effect))
 		}
 	}
 	return errs

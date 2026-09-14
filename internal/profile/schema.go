@@ -510,6 +510,61 @@ var StartFolders = []StartFolder{
 	StartFolderVideos, StartFolderNetwork, StartFolderPersonalFolder,
 }
 
+// VisualEffect is one of the individual animation/appearance toggles under
+// Windows' "Performance Options" (Explorer\VisualEffects). Slice 25
+// (tech.md backlog, Visual effects — outside the original 6 audit groups).
+type VisualEffect string
+
+const (
+	EffectControlAnimations       VisualEffect = "ControlAnimations"
+	EffectAnimateMinMax           VisualEffect = "AnimateMinMax"
+	EffectTaskbarAnimations       VisualEffect = "TaskbarAnimations"
+	EffectDWMAeroPeekEnabled      VisualEffect = "DWMAeroPeekEnabled"
+	EffectMenuAnimation           VisualEffect = "MenuAnimation"
+	EffectTooltipAnimation        VisualEffect = "TooltipAnimation"
+	EffectSelectionFade           VisualEffect = "SelectionFade"
+	EffectDWMSaveThumbnailEnabled VisualEffect = "DWMSaveThumbnailEnabled"
+	EffectCursorShadow            VisualEffect = "CursorShadow"
+	EffectListviewShadow          VisualEffect = "ListviewShadow"
+	EffectThumbnailsOrIcon        VisualEffect = "ThumbnailsOrIcon"
+	EffectListviewAlphaSelect     VisualEffect = "ListviewAlphaSelect"
+	EffectDragFullWindows         VisualEffect = "DragFullWindows"
+	EffectComboBoxAnimation       VisualEffect = "ComboBoxAnimation"
+	EffectFontSmoothing           VisualEffect = "FontSmoothing"
+	EffectListBoxSmoothScrolling  VisualEffect = "ListBoxSmoothScrolling"
+	EffectDropShadow              VisualEffect = "DropShadow"
+)
+
+// VisualEffects lists every valid VisualEffectsSettings.Custom key, in the
+// order shown in the TUI.
+var VisualEffects = []VisualEffect{
+	EffectControlAnimations, EffectAnimateMinMax, EffectTaskbarAnimations,
+	EffectDWMAeroPeekEnabled, EffectMenuAnimation, EffectTooltipAnimation,
+	EffectSelectionFade, EffectDWMSaveThumbnailEnabled, EffectCursorShadow,
+	EffectListviewShadow, EffectThumbnailsOrIcon, EffectListviewAlphaSelect,
+	EffectDragFullWindows, EffectComboBoxAnimation, EffectFontSmoothing,
+	EffectListBoxSmoothScrolling, EffectDropShadow,
+}
+
+// VisualEffectsMode selects a visual-effects preset. "" behaves the same
+// as VisualEffectsModeDefault (Windows' own default — "Let Windows choose
+// what's best").
+type VisualEffectsMode string
+
+const (
+	VisualEffectsModeDefault         VisualEffectsMode = "default"
+	VisualEffectsModeBestAppearance  VisualEffectsMode = "best_appearance"
+	VisualEffectsModeBestPerformance VisualEffectsMode = "best_performance"
+	VisualEffectsModeCustom          VisualEffectsMode = "custom"
+)
+
+// VisualEffectsSettings configures Windows' "Performance Options" visual
+// effects for every future account. Zero value (Mode="") changes nothing.
+type VisualEffectsSettings struct {
+	Mode   VisualEffectsMode     `json:"mode" validate:"omitempty,oneof=default best_appearance best_performance custom"`
+	Custom map[VisualEffect]bool `json:"custom"` // only meaningful when Mode == custom; unlisted effects keep Windows' default
+}
+
 // VMGuestTool is a virtualization guest-tools silent installer xmlgen
 // knows how to run at first logon. Slice 21 (tech.md backlog group C).
 type VMGuestTool string
@@ -536,9 +591,10 @@ type Profile struct {
 	Edition                        EditionSettings            `json:"edition"`
 	ActivationKey                  *string                    `json:"activation_key"`                                                    // slice 24: separate from Edition's install key; nil + EditionModeCustomKey reuses that key
 	ProcessorArchitecture          ProcessorArchitecture      `json:"processor_architecture" validate:"omitempty,oneof=amd64 x86 arm64"` // "" defaults to amd64
-	ComputerName                   *string                    `json:"computer_name"`                                                     // nil = Windows generates a random name
-	ComputerNameScript             *string                    `json:"computer_name_script"`                                              // slice 22: mutually exclusive with ComputerName, see validate.go
-	Timezone                       *string                    `json:"timezone"`                                                          // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
+	VisualEffects                  VisualEffectsSettings      `json:"visual_effects"`
+	ComputerName                   *string                    `json:"computer_name"`        // nil = Windows generates a random name
+	ComputerNameScript             *string                    `json:"computer_name_script"` // slice 22: mutually exclusive with ComputerName, see validate.go
+	Timezone                       *string                    `json:"timezone"`             // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
 	Accounts                       []UserAccount              `json:"accounts" validate:"max=5,dive"`
 	FirstLogon                     FirstLogon                 `json:"first_logon"`
 	ExpressSettings                ExpressSettings            `json:"express_settings"`
