@@ -112,7 +112,7 @@ func (v VisualEffects) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return v, nil
 		case "ctrl+n":
 			v.sync()
-			return v, Navigate(ScreenAdvanced)
+			return v, Navigate(ScreenTaskbar)
 		case "esc":
 			v.sync()
 			return v, Navigate(ScreenDesktop)
