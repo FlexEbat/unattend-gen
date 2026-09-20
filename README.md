@@ -17,7 +17,7 @@ no matter how it was filled in.
   (including BIOS/UEFI-firmware-stored keys and a separate activation-only
   key), and target processor architecture (x64/x86/ARM64)
 - Computer name, time zone, and up to 5 local accounts, with auto-logon control
-- Express settings (telemetry) and 28 system tweaks (Windows Update, UAC,
+- Express settings (telemetry) and 33 system tweaks (Windows Update, UAC,
   Windows 11 hardware-check bypass, SmartScreen, Fast Startup, System Restore,
   long paths, Remote Desktop, junction-point cleanup, Windows Update reboot
   prevention, ACL hardening, and more)
@@ -42,6 +42,9 @@ no matter how it was filled in.
   solid-color wallpaper) — same every-account mechanism
 - Visual effects presets (best appearance, best performance, or 17
   individual toggles) applied to every future account
+- Start menu and taskbar tweaks: search box mode, left-align (Win11), hide
+  Task View, always-show tray icons, disable widgets and Bing search
+  results, Start pins (Win11 JSON) and tiles (Win10 XML)
 - Sticky Keys (default/disabled/custom) and lock key (Caps/Num/Scroll)
   initial state and behavior, applied both to future accounts and the
   current session/lock screen

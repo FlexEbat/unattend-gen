@@ -1,8 +1,9 @@
 # tech.md — unattend-gen
 
-**Версия: v27** (2026-09-10)
+**Версия: v28** (2026-09-11)
 
 Changelog:
+- v28 — слайс 26: Start menu/taskbar, достижимая часть (8 из 9 под-пунктов, раздел сайта вне исходных 6 групп) — новый файл `internal/xmlgen/components/taskbar.go`, новый экран `screens.ScreenTaskbar` (между VisualEffects и Advanced). `SystemTweaks` 28→33 (5 новых), `Profile.TaskbarSearch`/`StartPins`/`StartTiles`. Единственный оставшийся под-пункт (кастомные закреплённые иконки таскбара, locked-layout+scheduled-task-unlock) сознательно не взят — существенно сложнее остальных 8 вместе взятых. Раздел 4/9.3/9.16.
 - v27 — слайс 25: Visual Effects (раздел сайта вне исходных 6 групп) — новый файл `internal/xmlgen/components/visualeffects.go`, новый экран `screens.ScreenVisualEffects` (между Desktop и Advanced), `Profile.VisualEffects VisualEffectsSettings` (4 режима, 17 эффектов). Побутно найден и исправлен баг слайса 21: `ScreenAdvanced` отсутствовал в `rebuildScreen`, переход туда всегда показывал Review. Раздел 4/9.15.
 - v26 — слайс 24: достижимая часть группы D — `ActivationKey`, `EditionModeFirmware` (BIOS/UEFI ключ), `ProcessorArchitecture` (единственное значение, не мульти-архитектура). Важные находки: «без интернета» дублировал уже реализованный `BypassOnlineAccountRequirement`; 7 других под-пунктов группы D закрыты как «неприменимо при текущем архитектурном решении» (все — части одного механизма замены PE-этапа своим `.cmd`-скриптом, конфликтующего с исключением диск-партиционирования). `UserData.ProductKey` стал указателем. Раздел 4/9.14.
 - v25 — слайс 23: `SystemTweaks.DeleteEdgeDesktopIcon` (28-е поле, побочная находка слайса 20) + `Profile.HidePowerShellWindows` (последний, 6-й пункт группы E — ЗАКРЫТА ПОЛНОСТЬЮ). `invokeCommand` получил параметр `hidden bool`; протащен через 13 функций в 5 файлах (`scripts.go`, `apps.go`, `misc.go`, `optimizations.go`, `vmapplocker.go`) + сигнатуры `NewDeployment`/`NewShellSetupOOBE`. Раздел 9.3/9.13.
@@ -77,7 +78,7 @@ internal/
     app.go                           NewModel, Model (bubbletea), таблица screens.ID → tea.Model
     screens/
       welcome.go, language.go, accounts.go, tweaks.go, wifi.go,
-      apps.go, personalization.go, accessibility.go, desktop.go, visualeffects.go, advanced.go, scripts.go, review.go
+      apps.go, personalization.go, accessibility.go, desktop.go, visualeffects.go, taskbar.go, advanced.go, scripts.go, review.go
       nav.go                         screens.ID, навигационные сообщения
     widgets/
       labeled_input.go, password_input.go, labeled_select.go,
@@ -101,6 +102,7 @@ internal/
       startmenu.go                   Desktop Icons + Folders on Start (RunOnce → живой HKCU нового аккаунта)
       vmapplocker.go                 VM guest tools (4 ps1-скрипта) + AppLocker (Set-AppLockerPolicy)
       visualeffects.go               Visual effects presets (best appearance/performance/custom, слайс 25)
+      taskbar.go                     Start menu/taskbar достижимая часть (слайс 26)
       misc.go                        Keep sensitive files, Narrator, ComputerNameScript (слайс 22)
     builder_*_test.go                по одному файлу тестов на каждый компонент/срез функциональности
 presets/
@@ -159,10 +161,13 @@ type Profile struct {
 - `Profile.ActivationKey *string` (слайс 24) — отдельный ключ ТОЛЬКО для активации (`Microsoft-Windows-Shell-Setup/ProductKey`, specialize), независимый от установочного ключа выше (`UserData/ProductKey`, windowsPE). `nil` + `Edition.Mode=custom_key` переиспользует тот ключ для активации тоже (как было и раньше, теперь явно через `components.ResolveActivationKey`); `nil` при остальных режимах — ничего не пишется.
 - `Profile.ProcessorArchitecture ProcessorArchitecture` (слайс 24) — `amd64|x86|arm64`, `""` = `amd64` по умолчанию. Сознательное упрощение относительно сайта-эталона: тот поддерживает НЕСКОЛЬКО архитектур в одном XML (весь документ дублируется на каждую) — у нас XML собирается из типизированных Go-структур, а не пост-обработкой DOM, так что честная поддержка мульти-архитектуры потребовала бы отдельного крупного рефакторинга сериализации; выбрано единственное значение, покрывающее подавляющее большинство реальных сценариев (один образ — одна архитектура).
 - `VisualEffectsSettings{Mode: default|best_appearance|best_performance|custom, Custom map[VisualEffect]bool}` (слайс 25) — 17 значений `VisualEffect` (`profile.VisualEffects`); `Custom` значим только при `Mode=custom`, необозначенные эффекты сохраняют дефолт Windows.
+- `Profile.TaskbarSearch TaskbarSearchMode` (слайс 26) — `hide|icon|box|label`, `""` = `box` (дефолт Windows).
+- `StartPinsSettings{Mode: default|empty|custom, JSON *string}` (слайс 26) — влияет только на Win11 (`ConfigureStartPins` policy); `JSON` обязателен при `Mode=custom`, валидируется на well-formed JSON.
+- `StartTilesSettings{Mode: default|empty|custom, XML *string}` (слайс 26) — влияет только на Win10 (`LayoutModification.xml`); `XML` обязателен при `Mode=custom`, валидируется на well-formed XML (переиспользует `validateWellFormedXML`).
 - `UserAccount{Name string (≤20), DisplayName *string, Password *string (nil=без пароля, "" запрещено), Group: Administrators|Users}`.
 - `FirstLogon{Mode: first_created_account|builtin_administrator|none, BuiltinAdministratorPassword *string}`.
 - `ExpressSettings{Mode: all_disabled|all_enabled|interactive}`.
-- `SystemTweaks` — 28 булевых полей (17 из слайса 8 + 6 из слайса 16 + 3 из слайса 18 + 1 из слайса 21 + 1 из слайса 23, см. раздел 9.3), все опциональны, zero value = ничего не меняется.
+- `SystemTweaks` — 33 булевых поля (17 из слайса 8 + 6 из слайса 16 + 3 из слайса 18 + 1 из слайса 21 + 1 из слайса 23 + 5 из слайса 26, см. раздел 9.3), все опциональны, zero value = ничего не меняется.
 - `WifiSettings{SSID (≤32), Authentication: Open|WPA2Personal|WPA3Personal, Password *string, ConnectHidden bool, RawProfileXML *string}` — `RawProfileXML` (слайс 22), если задан, используется как есть, остальные поля становятся необязательными (проверка в `validateWifi`, не в struct-тегах).
 - `RemovableApp` — строковый enum, 42 значения (31 из слайса 9 + 10 простых из слайса 17 + `OneDrive`, у которого другой механизм, см. раздел 9.6; список — `profile.RemovableApps`, порядок = порядок в TUI).
 - `RemovableFeature` — строковый enum, 11 значений (`profile.RemovableFeatures`): InternetExplorer, WordPad, PowerShellISE, OpenSSHClient, MediaPlayer, Speech, Handwriting (слайс 11) + WindowsHello, MathInputPanel, OneSync, StepsRecorder (слайс 17).
@@ -242,14 +247,15 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 ## 7. TUI: экраны и виджеты (заморожен)
 
-Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Desktop → VisualEffects → Advanced → Scripts → Review**.
+Порядок экранов (`internal/tui/app.go`, `screens.ID`): **Welcome → Language → Accounts → Tweaks → Wifi → Apps → Personalization → Accessibility → Desktop → VisualEffects → Taskbar → Advanced → Scripts → Review**.
 
 - Каждый экран — отдельный `tea.Model` в `internal/tui/screens/*.go`, общий `*profile.Profile` передаётся через `rebuildScreen` при каждой навигации, так экран всегда синхронизирован с последним состоянием.
 - `screens.ScreenApps` — совмещённый экран: чекбоксы удаляемых приложений (`RemoveApps`), удаляемых DISM-компонентов (`RemoveFeatures`) и удаляемых legacy optional features (`RemoveOptionalFeatures`, слайс 17) — три разных механизма, одна таблица фокуса (`internal/tui/screens/apps.go`, `checkboxAt`).
 - `screens.ScreenAccessibility` (слайс 19) — Sticky Keys (select + до 6 чекбоксов, только когда `mode=custom`) и Lock Keys (чекбокс «настраивать» + 6 select'ов, видны только если включён — `nil` `LockKeys` иначе, как на сайте-эталоне). Между Personalization и Scripts.
 - `screens.ScreenDesktop` (слайс 20) — видимость значков рабочего стола (мастер-чекбокс «настраивать»: выключен = `nil` `DesktopIcons`, включён = все 13 значков получают явный чекбокс) + закреплённые папки на Start (`StartFolders`, простой список без мастер-чекбокса — пустой список сам по себе уже значит «не трогать», доп. переключатель не нужен). Между Accessibility и Scripts.
 - `screens.ScreenVisualEffects` (слайс 25) — select режима (default/best_appearance/best_performance/custom) + 17 чекбоксов, видны только при `mode=custom`. Выбор режима custom всегда пишет явное значение для ВСЕХ 17 эффектов (не частичную карту) — тот же принцип «выбор режима подразумевает весь набор», что и у видимости значков рабочего стола на экране Desktop. Между Desktop и Advanced.
-- `screens.ScreenAdvanced` (слайс 21, расширен в слайсе 22) — чекбоксы 4 наборов гостевых дополнений ВМ (`InstallVMGuestTools`) + `widgets.LabeledTextArea` для сырого AppLocker policy XML + `widgets.LabeledTextArea` для `ComputerNameScript` + 3 чекбокса (`KeepSensitiveFiles`, `UseNarrator`, `ObscurePasswords`). Пусто/не отмечено = `nil`/`false`, как везде в проекте. Между VisualEffects и Scripts.
+- `screens.ScreenTaskbar` (слайс 26) — 5 чекбоксов (`DisableWidgets`/`LeftTaskbar`/`HideTaskViewButton`/`DisableBingResults`/`ShowAllTrayIcons`), select `TaskbarSearch`, select+текстовое поле для `StartPins` (Win11 JSON) и `StartTiles` (Win10 XML) — текстовое поле видно только при `mode=custom`. Между VisualEffects и Advanced.
+- `screens.ScreenAdvanced` (слайс 21, расширен в слайсе 22) — чекбоксы 4 наборов гостевых дополнений ВМ (`InstallVMGuestTools`) + `widgets.LabeledTextArea` для сырого AppLocker policy XML + `widgets.LabeledTextArea` для `ComputerNameScript` + 3 чекбокса (`KeepSensitiveFiles`, `UseNarrator`, `ObscurePasswords`). Пусто/не отмечено = `nil`/`false`, как везде в проекте. Между Taskbar и Scripts.
 - `screens.ScreenWifi` (расширен в слайсе 22) — чекбокс «настроить Wi-Fi», затем чекбокс «raw XML вместо ручных полей» (`rawMode`): включён — показывает только `widgets.LabeledTextArea` для `WifiSettings.RawProfileXML`, ручные поля (SSID/auth/password/hidden) скрыты и не участвуют; выключен — старое поведение без изменений.
 - `screens.ScreenTweaks` — самый нагруженный экран: express settings, 17 чекбоксов `SystemTweaks`, политика истечения пароля, политика блокировки аккаунта, настройки File Explorer. Число полей и индекс фокуса вычисляются динамически (условные блоки появляются только когда соответствующий Mode = custom).
 - `screens.ScreenAccounts` — также несёт `Timezone` и `BypassOnlineAccountRequirement`, не только таблицу аккаунтов.
@@ -418,6 +424,16 @@ func BuildAnswerFile(p *profile.Profile) (string, error)
 
 Побочная находка при работе над этим слайсом: `screens.ScreenAdvanced` отсутствовал как `case` в `rebuildScreen` (`internal/tui/app.go`) с самого слайса 21 — переход на этот экран (`Ctrl+N` с Desktop) всегда ошибочно показывал Review вместо Advanced. Исправлено попутно при добавлении `ScreenVisualEffects` в тот же switch.
 
+### 9.16 Start menu/taskbar — достижимая часть (`taskbar.go`, слайс 26)
+
+Раздел сайта вне исходных 6 групп аудита. Реализована достижимая часть (8 из 9 под-пунктов); самый сложный под-пункт (кастомные закреплённые иконки таскбара через locked Start layout XML + scheduled-task-based unlock flow) сознательно не взят — см. бэклог. Механизмы сверены с `modifier/Optimizations.cs` эталона и `resource/ShowAllTrayIcons.*`.
+
+- Простые (одна reg.exe-команда, `SystemTweaks`): `DisableWidgets` (specialize, машинная политика). `LeftTaskbar`, `HideTaskViewButton`, `DisableBingResults` — каждый через свой независимый цикл монтирования default-user hive (per-account значения `Explorer\Advanced`/`Explorer` policy, не общесистемная политика).
+- `ShowAllTrayIcons` (`SystemTweaks`) — ветвление по билду ОС (тот же подход, что у эталона: Win10 и Win11 требуют разных механизмов): на Win10 — прямое значение реестра `EnableAutoTray=0` в default-user hive; на Win11 — scheduled task, запускающийся при каждом логоне и помечающий каждую иконку трея `IsPromoted=1` (XML задачи скопирован дословно из `resource/ShowAllTrayIcons.xml`).
+- `Profile.TaskbarSearch` — тот же RunOnce→живой-HKCU паттерн, что Desktop Icons/Visual Effects: ставит `HKCU\...\Search\SearchboxTaskbarMode` (0=hide/1=icon/2=box/3=label) + перезапускает Explorer, при первом входе КАЖДОГО будущего аккаунта.
+- `Profile.StartPins` (только Win11) — специализированная политика `HKLM\SOFTWARE\Microsoft\PolicyManager\current\device\Start\ConfigureStartPins` = сырой JSON (`{"pinnedList":[...]}`), проверка на билд ОС внутри самого PS-скрипта (`OSVersion.Version.Build -lt 20000 → return`). JSON встраивается в одинарные PowerShell-кавычки через `psSingleQuoteEscape` (удвоение `'`), не через `escapeForOuterCommand` (тот экранирует двойные кавычки для внешней обёртки, здесь нужен другой уровень экранирования).
+- `Profile.StartTiles` (только Win10) — прямая запись файла `C:\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.xml`, БЕЗ монтирования куста реестра (это обычный файл, путь существует сразу после применения образа).
+
 ---
 
 ## 10. Сборка и проверки (заморожен)
@@ -519,6 +535,7 @@ CONTRACT GAP
 - **23**: `DeleteEdgeDesktopIcon` (28-й SystemTweak, побочная находка слайса 20) + глобальный `HidePowerShellWindows` (последний пункт группы E, ЗАКРЫТА ПОЛНОСТЬЮ 6/6). `invokeCommand` получил параметр `hidden bool`, протащен через 13 функций в 5 файлах + сигнатуры `NewDeployment`/`NewShellSetupOOBE`. Затрагивает встроенные твики и пользовательские скрипты одинаково.
 - **24**: достижимая часть группы D — `ActivationKey`, `EditionModeFirmware`, `ProcessorArchitecture`. По ходу исследования выяснено: «без интернета» дублировал уже реализованный `BypassOnlineAccountRequirement` (не отдельная задача), а 7 других под-пунктов группы D (8.3-имена, Defender-в-PE, паузы, compact, skip integrity, выбор образа, `$OEM$`) — все части одного механизма замены PE-этапа своим `.cmd`-скриптом с diskpart/dism, конфликтующего с исключением диск-партиционирования (раздел 1) — закрыты как «неприменимо», не как «сделать позже». `UserData.ProductKey` стал указателем (`omitempty`) для режима firmware. `newStandardAttrs` принимает архитектуру, протащено через 6 конструкторов.
 - **25**: Visual Effects (раздел сайта вне исходных 6 групп аудита) — новый файл `internal/xmlgen/components/visualeffects.go`, новый экран `screens.ScreenVisualEffects` (между Desktop и Advanced). 4 режима, 17 индивидуальных эффектов, тот же RunOnce→живой-HKCU паттерн, что Desktop Icons. Попутно найден и исправлен баг с слайса 21: `ScreenAdvanced` отсутствовал в `rebuildScreen`, переход туда показывал Review вместо Advanced.
+- **26**: Start menu/taskbar, достижимая часть (8 из 9 под-пунктов) — новый файл `internal/xmlgen/components/taskbar.go`, новый экран `screens.ScreenTaskbar` (между VisualEffects и Advanced). 5 новых `SystemTweaks` (`DisableWidgets`, `LeftTaskbar`, `HideTaskViewButton`, `DisableBingResults`, `ShowAllTrayIcons` — последний с ветвлением по билду ОС и scheduled-task на Win11), `Profile.TaskbarSearch`, `Profile.StartPins` (Win11 JSON policy), `Profile.StartTiles` (Win10 XML-файл в Default-профиль). Кастомные закреплённые иконки таскбара (locked Start layout + scheduled-task-unlock) сознательно не взяты — остаются в бэклоге как единственный нереализованный под-пункт.
 
 ### Бэклог — полная сверка с schneegans.de (аудит 2026-09-03)
 
@@ -536,7 +553,8 @@ CONTRACT GAP
 **Группа B — оставшиеся System tweaks — ЗАКРЫТА полностью в слайсе 18.**
 
 **Группа C — целые отсутствующие разделы сайта (новая функциональность, скорее всего отдельные экраны TUI). ЗАКРЫТА ПОЛНОСТЬЮ в слайсах 19–21 (Lock keys, Sticky keys, Desktop icons, Folders on Start, VM guest tools, VM host core isolation, AppLocker). Start menu/taskbar был заявлен отдельно от исходного 9-пунктового списка группы, остаётся открытым ниже; Visual effects (тоже был заявлен отдельно) закрыт в слайсе 25.**
-- **Start menu and taskbar** — самый крупный из отсутствующих разделов: режим отображения поля поиска в таскбаре, конфигурация закреплённых иконок таскбара через XML, отключение виджетов, left-align таскбара (Win11, простой reg add `TaskbarAl=0` в default-user hive — замечен рядом с VM tools кодом в слайсе 21, дешёвый кандидат), скрытие кнопки Task View, «always show tray icons», отключение Bing-результатов в поиске, плитки Start (Win10) и pins (Win11) через XML/JSON — НЕ то же самое, что закрытые в слайсе 20 «Folders on Start» (папки у кнопки питания).
+- **Start menu and taskbar** — ЗАКРЫТ почти полностью в слайсе 26 (8 из 9 под-пунктов: режим поля поиска, отключение виджетов, left-align таскбара, скрытие Task View, «always show tray icons», отключение Bing-результатов, плитки Start Win10, pins Win11 — все сделаны). Остался один под-пункт:
+  - **Конфигурация закреплённых иконок таскбара через XML** (`TaskbarIcons` у эталона) — сознательно не взят в слайс 26: требует locked Start layout XML + `LockedStartLayout` реестровых значений + scheduled-task-based unlock flow (`UnlockStartLayout`) + отдельный `.vbs`-скрипт — значительно сложнее остальных 8 под-пунктов вместе взятых, отдельный кандидат на будущий слайс.
 - ~~Visual effects~~ — закрыто в слайсе 25 (`Profile.VisualEffects`, раздел 9.15).
 - ~~Delete Edge desktop icon~~ — закрыто в слайсе 23 (`SystemTweaks.DeleteEdgeDesktopIcon`, см. раздел 9.3/9.13).
 
