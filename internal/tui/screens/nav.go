@@ -26,6 +26,7 @@ const (
 	ScreenAccessibility
 	ScreenDesktop
 	ScreenVisualEffects
+	ScreenTaskbar
 	ScreenAdvanced
 	ScreenScripts
 	ScreenReview
