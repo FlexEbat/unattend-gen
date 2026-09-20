@@ -67,6 +67,8 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateStickyKeys(p.StickyKeys)...)
 	errs = append(errs, validateDesktopIcons(p.DesktopIcons)...)
 	errs = append(errs, validateVisualEffects(p.VisualEffects)...)
+	errs = append(errs, validateStartPins(p.StartPins)...)
+	errs = append(errs, validateStartTiles(p.StartTiles)...)
 	errs = append(errs, validateStartFolders(p.StartFolders)...)
 	errs = append(errs, validateInstallVMGuestTools(p.InstallVMGuestTools)...)
 	errs = append(errs, validateAppLockerPolicyXML(p.AppLockerPolicyXML)...)
@@ -376,6 +378,29 @@ func validateVisualEffects(s VisualEffectsSettings) []string {
 		}
 	}
 	return errs
+}
+
+func validateStartPins(s StartPinsSettings) []string {
+	if s.Mode != StartPinsModeCustom {
+		return nil
+	}
+	if s.JSON == nil || strings.TrimSpace(*s.JSON) == "" {
+		return []string{"Для режима custom у start_pins требуется непустой json"}
+	}
+	if !json.Valid([]byte(*s.JSON)) {
+		return []string{"start_pins.json не является валидным JSON"}
+	}
+	return nil
+}
+
+func validateStartTiles(s StartTilesSettings) []string {
+	if s.Mode != StartTilesModeCustom {
+		return nil
+	}
+	if s.XML == nil || strings.TrimSpace(*s.XML) == "" {
+		return []string{"Для режима custom у start_tiles требуется непустой xml"}
+	}
+	return validateWellFormedXML(*s.XML, "start_tiles.xml")
 }
 
 func validateStartFolders(folders []StartFolder) []string {

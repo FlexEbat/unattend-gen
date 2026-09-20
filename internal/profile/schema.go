@@ -130,6 +130,11 @@ type SystemTweaks struct {
 	DeleteWindowsOld      bool `json:"delete_windows_old"`
 	DisableCoreIsolation bool `json:"disable_core_isolation"`
 	DeleteEdgeDesktopIcon bool `json:"delete_edge_desktop_icon"`
+	DisableWidgets     bool `json:"disable_widgets"`
+	LeftTaskbar        bool `json:"left_taskbar"`
+	HideTaskViewButton bool `json:"hide_task_view_button"`
+	DisableBingResults bool `json:"disable_bing_results"`
+	ShowAllTrayIcons   bool `json:"show_all_tray_icons"`
 }
 
 // WifiAuthentication is the authentication type of a pre-configured Wi-Fi profile.
@@ -550,6 +555,52 @@ const (
 	VisualEffectsModeCustom          VisualEffectsMode = "custom"
 )
 
+// TaskbarSearchMode selects how the search box appears on the taskbar.
+// "" behaves the same as TaskbarSearchModeBox (Windows' own default).
+type TaskbarSearchMode string
+
+const (
+	TaskbarSearchModeHide  TaskbarSearchMode = "hide"
+	TaskbarSearchModeIcon  TaskbarSearchMode = "icon"
+	TaskbarSearchModeBox   TaskbarSearchMode = "box"
+	TaskbarSearchModeLabel TaskbarSearchMode = "label"
+)
+
+// StartPinsMode selects what shows up pinned on the Start menu.
+type StartPinsMode string
+
+const (
+	StartPinsModeDefault StartPinsMode = "default"
+	StartPinsModeEmpty   StartPinsMode = "empty"
+	StartPinsModeCustom  StartPinsMode = "custom"
+)
+
+// StartPinsSettings configures the Start menu's pinned-apps list (Windows
+// 11's "PolicyManager\...\Start\ConfigureStartPins" mechanism - has no
+// effect on Windows 10). Zero value (Mode="") changes nothing.
+type StartPinsSettings struct {
+	Mode StartPinsMode `json:"mode" validate:"omitempty,oneof=default empty custom"`
+	JSON *string       `json:"json"` // required when Mode == custom; raw pinnedList JSON
+}
+
+// StartTilesMode selects what tiles/groups show on the Windows 10 Start
+// menu (has no effect on Windows 11, which uses StartPinsSettings instead).
+type StartTilesMode string
+
+const (
+	StartTilesModeDefault StartTilesMode = "default"
+	StartTilesModeEmpty   StartTilesMode = "empty"
+	StartTilesModeCustom  StartTilesMode = "custom"
+)
+
+// StartTilesSettings configures the Windows 10 Start menu's tile layout via
+// a LayoutModification.xml written to the default profile. Zero value
+// (Mode="") changes nothing.
+type StartTilesSettings struct {
+	Mode StartTilesMode `json:"mode" validate:"omitempty,oneof=default empty custom"`
+	XML  *string        `json:"xml"` // required when Mode == custom; raw LayoutModification.xml content
+}
+
 // VisualEffectsSettings configures Windows' "Performance Options" visual
 // effects for every future account. Zero value (Mode="") changes nothing.
 type VisualEffectsSettings struct {
@@ -584,6 +635,9 @@ type Profile struct {
 	ActivationKey                  *string                    `json:"activation_key"`                                                    // Separate from Edition's install key; nil + EditionModeCustomKey reuses that key
 	ProcessorArchitecture          ProcessorArchitecture      `json:"processor_architecture" validate:"omitempty,oneof=amd64 x86 arm64"` // "" defaults to amd64
 	VisualEffects                  VisualEffectsSettings      `json:"visual_effects"`
+	TaskbarSearch                  TaskbarSearchMode          `json:"taskbar_search" validate:"omitempty,oneof=hide icon box label"`
+	StartPins                      StartPinsSettings          `json:"start_pins"`
+	StartTiles                     StartTilesSettings         `json:"start_tiles"`
 	ComputerName                   *string                    `json:"computer_name"`        // nil = Windows generates a random name
 	ComputerNameScript             *string                    `json:"computer_name_script"` // Mutually exclusive with ComputerName, see validate.go
 	Timezone                       *string                    `json:"timezone"`             // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"
