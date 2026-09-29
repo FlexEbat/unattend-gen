@@ -11,6 +11,10 @@ TUI both read and write the same profile format and build the XML through
 the same code path, so a given profile always produces the same answer file
 no matter how it was filled in.
 
+**Full documentation:** see [docs/USAGE.md](docs/USAGE.md) for every CLI
+command, a screen-by-screen TUI walkthrough, and a complete reference for
+every field a profile can contain.
+
 ## Features
 
 - Language, locale, keyboard layout, Windows edition and product key
