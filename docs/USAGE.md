@@ -212,8 +212,9 @@ move around, so nothing is lost by navigating back and forth.
 11. **Taskbar** — Start menu and taskbar tweaks: disable widgets,
     left-align the taskbar (Windows 11), hide the Task View button,
     disable Bing results in search, always show every tray icon, the
-    taskbar search box's display mode, and Start pins (Windows 11 JSON)
-    / tiles (Windows 10 XML).
+    taskbar search box's display mode, Start pins (Windows 11 JSON) /
+    tiles (Windows 10 XML), and pinned taskbar icons (empty or a custom
+    layout XML).
 12. **Advanced** — install VM guest tools (VirtualBox/VMware/VirtIO/
     Parallels), a raw AppLocker policy XML, a PowerShell script that
     computes a dynamic computer name, and three small checkboxes: keep
@@ -862,8 +863,6 @@ environment).
   this tool (though an issue about it is still welcome).
 - **Multi-architecture answer files aren't supported.** Pick one
   `processor_architecture` per profile.
-- **Custom pinned taskbar icons** (as opposed to Start menu pins/tiles)
-  aren't implemented yet.
 - **A raw XML "escape hatch" for arbitrary unattend components** isn't
   implemented — if you need a component this tool doesn't expose a field
   for, you'll need to hand-edit the generated `autounattend.xml` after
