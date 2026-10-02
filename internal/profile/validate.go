@@ -69,6 +69,7 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateVisualEffects(p.VisualEffects)...)
 	errs = append(errs, validateStartPins(p.StartPins)...)
 	errs = append(errs, validateStartTiles(p.StartTiles)...)
+	errs = append(errs, validateTaskbarIcons(p.TaskbarIcons)...)
 	errs = append(errs, validateStartFolders(p.StartFolders)...)
 	errs = append(errs, validateInstallVMGuestTools(p.InstallVMGuestTools)...)
 	errs = append(errs, validateAppLockerPolicyXML(p.AppLockerPolicyXML)...)
@@ -401,6 +402,16 @@ func validateStartTiles(s StartTilesSettings) []string {
 		return []string{"Для режима custom у start_tiles требуется непустой xml"}
 	}
 	return validateWellFormedXML(*s.XML, "start_tiles.xml")
+}
+
+func validateTaskbarIcons(s TaskbarIconsSettings) []string {
+	if s.Mode != TaskbarIconsModeCustom {
+		return nil
+	}
+	if s.XML == nil || strings.TrimSpace(*s.XML) == "" {
+		return []string{"Для режима custom у taskbar_icons требуется непустой xml"}
+	}
+	return validateWellFormedXML(*s.XML, "taskbar_icons.xml")
 }
 
 func validateStartFolders(folders []StartFolder) []string {

@@ -126,7 +126,7 @@ type Deployment struct {
 // DefaultUser scripts and the UserOnce RunOnce registration (in that
 // order). Returns nil when none are set: an empty component is not
 // emitted.
-func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, useNarrator bool, computerNameScript *string, hidePowerShellWindows bool, arch profile.ProcessorArchitecture, visualEffects profile.VisualEffectsSettings, taskbarSearch profile.TaskbarSearchMode, startPins profile.StartPinsSettings, startTiles profile.StartTilesSettings, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
+func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, useNarrator bool, computerNameScript *string, hidePowerShellWindows bool, arch profile.ProcessorArchitecture, visualEffects profile.VisualEffectsSettings, taskbarSearch profile.TaskbarSearchMode, startPins profile.StartPinsSettings, startTiles profile.StartTilesSettings, taskbarIcons profile.TaskbarIconsSettings, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
 	enabledCommands := []struct {
 		enabled bool
 		command string
@@ -244,6 +244,9 @@ func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement b
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
 	if cmd := StartTilesCommand(startTiles); cmd != "" {
+		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
+	}
+	if cmd := TaskbarIconsCommand(taskbarIcons, hidePowerShellWindows); cmd != "" {
 		commands = append(commands, newRunSynchronousCommand(len(commands)+1, cmd))
 	}
 	if cmd := AppLockerCommand(appLockerPolicyXML); cmd != "" {

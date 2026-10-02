@@ -635,7 +635,8 @@ Applies to every future account, not just the one created during setup.
 ```json
 "taskbar_search": "",
 "start_pins": { "mode": "default", "json": null },
-"start_tiles": { "mode": "default", "xml": null }
+"start_tiles": { "mode": "default", "xml": null },
+"taskbar_icons": { "mode": "default", "xml": null }
 ```
 
 - `taskbar_search`: `""`/absent (Windows default, search box shown),
@@ -649,8 +650,14 @@ Applies to every future account, not just the one created during setup.
   `"default"`, `"empty"` (no tile groups), or `"custom"` (requires
   `xml` — a raw `LayoutModification.xml` document).
 
-Pinning custom taskbar icons (as opposed to Start menu pins/tiles) isn't
-supported yet.
+- `taskbar_icons`: icons pinned to the taskbar for every future account.
+  `mode` is `"default"`, `"empty"` (no pinned icons) or `"custom"` (requires
+  `xml` — a raw `LayoutModification.xml` containing a
+  `CustomTaskbarLayoutCollection`). It works through a locked Start layout
+  that is unlocked again at each account's first logon, so users can
+  rearrange the taskbar afterwards; the generated answer file therefore also
+  registers a small `UnlockStartLayout` scheduled task. Only well-formedness
+  of the XML is checked, not Windows' taskbar-layout schema.
 
 ### Advanced — *(Advanced screen)*
 

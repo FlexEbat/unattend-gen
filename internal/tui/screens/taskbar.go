@@ -27,10 +27,16 @@ var startTilesModeOptions = []widgets.SelectOption{
 	{Value: string(profile.StartTilesModeCustom), Label: "Custom (raw LayoutModification.xml)"},
 }
 
+var taskbarIconsModeOptions = []widgets.SelectOption{
+	{Value: string(profile.TaskbarIconsModeDefault), Label: "Windows default"},
+	{Value: string(profile.TaskbarIconsModeEmpty), Label: "Empty (no pinned icons)"},
+	{Value: string(profile.TaskbarIconsModeCustom), Label: "Custom (raw taskbar layout XML)"},
+}
+
 // Taskbar is the Start menu/taskbar screen: 5 simple checkboxes, a
 // taskbar-search-mode select, and
-// Start pins (Windows 11)/tiles (Windows 10) each with their own
-// default/empty/custom mode select - the custom text area only appears
+// Start pins (Windows 11)/tiles (Windows 10)/taskbar icons each
+// with their own default/empty/custom mode select - the custom text area only appears
 // when its mode is Custom.
 type Taskbar struct {
 	profile *profile.Profile
@@ -45,6 +51,8 @@ type Taskbar struct {
 	startPinsJSON      widgets.LabeledTextArea
 	startTilesMode     widgets.LabeledSelect
 	startTilesXML      widgets.LabeledTextArea
+	taskbarIconsMode   widgets.LabeledSelect
+	taskbarIconsXML    widgets.LabeledTextArea
 
 	focus int
 	bar   widgets.ConfirmBar
@@ -64,6 +72,8 @@ func NewTaskbar(p *profile.Profile) Taskbar {
 		startPinsJSON:      widgets.NewLabeledTextArea("Start pins JSON (pinnedList)", ""),
 		startTilesMode:     widgets.NewLabeledSelect("Start tiles (Windows 10)", startTilesModeOptions),
 		startTilesXML:      widgets.NewLabeledTextArea("Start tiles LayoutModification.xml", ""),
+		taskbarIconsMode:   widgets.NewLabeledSelect("Taskbar icons (pinned apps)", taskbarIconsModeOptions),
+		taskbarIconsXML:    widgets.NewLabeledTextArea("Taskbar layout XML (LayoutModification)", ""),
 		bar:                widgets.NewConfirmBar("Tab: focus", "Space: toggle", "Ctrl+N: next", "Esc: back", "Ctrl+R: review"),
 	}
 	t.taskbarSearch.SetValue(string(p.TaskbarSearch))
@@ -74,6 +84,10 @@ func NewTaskbar(p *profile.Profile) Taskbar {
 	t.startTilesMode.SetValue(string(p.StartTiles.Mode))
 	if p.StartTiles.XML != nil {
 		t.startTilesXML.SetValue(*p.StartTiles.XML)
+	}
+	t.taskbarIconsMode.SetValue(string(p.TaskbarIcons.Mode))
+	if p.TaskbarIcons.XML != nil {
+		t.taskbarIconsXML.SetValue(*p.TaskbarIcons.XML)
 	}
 	return t
 }
@@ -91,8 +105,13 @@ func (t Taskbar) startTilesCustom() bool {
 	return t.startTilesMode.Value() == string(profile.StartTilesModeCustom)
 }
 
+func (t Taskbar) taskbarIconsCustom() bool {
+	return t.taskbarIconsMode.Value() == string(profile.TaskbarIconsModeCustom)
+}
+
 // Field layout: 0-4 checkboxes, 5 taskbarSearch, 6 startPinsMode,
-// [7 startPinsJSON if custom], next startTilesMode, [next startTilesXML if custom].
+// [7 startPinsJSON if custom], next startTilesMode, [next startTilesXML if custom],
+// next taskbarIconsMode, [next taskbarIconsXML if custom].
 func (t Taskbar) startPinsModeIdx() int { return 6 }
 func (t Taskbar) startPinsJSONIdx() int { return 7 }
 func (t Taskbar) startTilesModeIdx() int {
@@ -102,13 +121,39 @@ func (t Taskbar) startTilesModeIdx() int {
 	return 7
 }
 func (t Taskbar) startTilesXMLIdx() int { return t.startTilesModeIdx() + 1 }
+func (t Taskbar) taskbarIconsModeIdx() int {
+	if t.startTilesCustom() {
+		return t.startTilesXMLIdx() + 1
+	}
+	return t.startTilesModeIdx() + 1
+}
+func (t Taskbar) taskbarIconsXMLIdx() int { return t.taskbarIconsModeIdx() + 1 }
 
 func (t Taskbar) fieldCount() int {
-	n := t.startTilesModeIdx() + 1
-	if t.startTilesCustom() {
+	n := t.taskbarIconsModeIdx() + 1
+	if t.taskbarIconsCustom() {
 		n++
 	}
 	return n
+}
+
+// setFocus moves focus to field i. The three custom text areas only accept
+// input while focused (textarea ignores keys otherwise), so they are blurred
+// and the active one is focused explicitly.
+func (t *Taskbar) setFocus(i int) tea.Cmd {
+	t.startPinsJSON.Blur()
+	t.startTilesXML.Blur()
+	t.taskbarIconsXML.Blur()
+	t.focus = i
+	switch {
+	case t.startPinsCustom() && i == t.startPinsJSONIdx():
+		return t.startPinsJSON.Focus()
+	case t.startTilesCustom() && i == t.startTilesXMLIdx():
+		return t.startTilesXML.Focus()
+	case t.taskbarIconsCustom() && i == t.taskbarIconsXMLIdx():
+		return t.taskbarIconsXML.Focus()
+	}
+	return nil
 }
 
 func (t *Taskbar) sync() {
@@ -134,6 +179,14 @@ func (t *Taskbar) sync() {
 	} else {
 		t.profile.StartTiles.XML = nil
 	}
+
+	t.profile.TaskbarIcons.Mode = profile.TaskbarIconsMode(t.taskbarIconsMode.Value())
+	if t.taskbarIconsCustom() {
+		v := t.taskbarIconsXML.Value()
+		t.profile.TaskbarIcons.XML = &v
+	} else {
+		t.profile.TaskbarIcons.XML = nil
+	}
 }
 
 // Update handles focus cycling, checkbox/select/text input and navigation.
@@ -141,13 +194,13 @@ func (t Taskbar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.String() {
 		case "tab":
-			t.focus = (t.focus + 1) % t.fieldCount()
+			cmd := t.setFocus((t.focus + 1) % t.fieldCount())
 			t.sync()
-			return t, nil
+			return t, cmd
 		case "shift+tab":
-			t.focus = (t.focus - 1 + t.fieldCount()) % t.fieldCount()
+			cmd := t.setFocus((t.focus - 1 + t.fieldCount()) % t.fieldCount())
 			t.sync()
-			return t, nil
+			return t, cmd
 		case " ":
 			switch t.focus {
 			case 0:
@@ -187,6 +240,10 @@ func (t Taskbar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		t.startTilesMode, cmd = t.startTilesMode.Update(msg)
 	case t.startTilesCustom() && t.focus == t.startTilesXMLIdx():
 		t.startTilesXML, cmd = t.startTilesXML.Update(msg)
+	case t.focus == t.taskbarIconsModeIdx():
+		t.taskbarIconsMode, cmd = t.taskbarIconsMode.Update(msg)
+	case t.taskbarIconsCustom() && t.focus == t.taskbarIconsXMLIdx():
+		t.taskbarIconsXML, cmd = t.taskbarIconsXML.Update(msg)
 	}
 	t.sync()
 	if t.focus >= t.fieldCount() {
@@ -195,8 +252,8 @@ func (t Taskbar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return t, cmd
 }
 
-// View renders the checkboxes, taskbar search select, and Start pins/tiles
-// mode selects with their custom text areas when applicable.
+// View renders the checkboxes, taskbar search select, and Start pins/tiles/
+// taskbar icons mode selects with their custom text areas when applicable.
 func (t Taskbar) View() string {
 	out := t.disableWidgets.View(t.focus == 0) + "\n"
 	out += t.leftTaskbar.View(t.focus == 1) + "\n"
@@ -211,6 +268,10 @@ func (t Taskbar) View() string {
 	out += "\n\n" + t.startTilesMode.View()
 	if t.startTilesCustom() {
 		out += "\n\n" + t.startTilesXML.View()
+	}
+	out += "\n\n" + t.taskbarIconsMode.View()
+	if t.taskbarIconsCustom() {
+		out += "\n\n" + t.taskbarIconsXML.View()
 	}
 	out += "\n\n" + t.bar.View()
 	return out

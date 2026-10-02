@@ -48,7 +48,8 @@ every field a profile can contain.
   individual toggles) applied to every future account
 - Start menu and taskbar tweaks: search box mode, left-align (Win11), hide
   Task View, always-show tray icons, disable widgets and Bing search
-  results, Start pins (Win11 JSON) and tiles (Win10 XML)
+  results, Start pins (Win11 JSON) and tiles (Win10 XML), pinned taskbar
+  icons (empty or custom layout XML)
 - Sticky Keys (default/disabled/custom) and lock key (Caps/Num/Scroll)
   initial state and behavior, applied both to future accounts and the
   current session/lock screen

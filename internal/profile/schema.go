@@ -601,6 +601,24 @@ type StartTilesSettings struct {
 	XML  *string        `json:"xml"` // required when Mode == custom; raw LayoutModification.xml content
 }
 
+// TaskbarIconsMode selects which icons are pinned to the taskbar.
+type TaskbarIconsMode string
+
+const (
+	TaskbarIconsModeDefault TaskbarIconsMode = "default"
+	TaskbarIconsModeEmpty   TaskbarIconsMode = "empty"
+	TaskbarIconsModeCustom  TaskbarIconsMode = "custom"
+)
+
+// TaskbarIconsSettings configures the icons pinned to the taskbar for every
+// future account. Applied through a locked Start layout that is
+// unlocked again at first logon, so users can rearrange the taskbar
+// afterwards. Zero value (Mode="") changes nothing.
+type TaskbarIconsSettings struct {
+	Mode TaskbarIconsMode `json:"mode" validate:"omitempty,oneof=default empty custom"`
+	XML  *string          `json:"xml"` // required when Mode == custom; raw LayoutModification.xml with a CustomTaskbarLayoutCollection
+}
+
 // VisualEffectsSettings configures Windows' "Performance Options" visual
 // effects for every future account. Zero value (Mode="") changes nothing.
 type VisualEffectsSettings struct {
@@ -638,6 +656,7 @@ type Profile struct {
 	TaskbarSearch                  TaskbarSearchMode          `json:"taskbar_search" validate:"omitempty,oneof=hide icon box label"`
 	StartPins                      StartPinsSettings          `json:"start_pins"`
 	StartTiles                     StartTilesSettings         `json:"start_tiles"`
+	TaskbarIcons                   TaskbarIconsSettings       `json:"taskbar_icons"`
 	ComputerName                   *string                    `json:"computer_name"`        // nil = Windows generates a random name
 	ComputerNameScript             *string                    `json:"computer_name_script"` // Mutually exclusive with ComputerName, see validate.go
 	Timezone                       *string                    `json:"timezone"`             // nil = Windows determines it automatically; a Windows time zone ID such as "Russian Standard Time"

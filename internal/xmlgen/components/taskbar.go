@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 )
@@ -10,8 +11,8 @@ import (
 // (github.com/cschneegans/unattend-generator, modifier/Optimizations.cs
 // and resource/ShowAllTrayIcons.*), not invented from memory. The most
 // elaborate sub-feature of this section - custom pinned taskbar icons via
-// a locked Start layout XML + scheduled-task-based unlock flow - is
-// not included here.
+// a locked Start layout XML + scheduled-task-based unlock flow - was added
+// separately in .
 
 // Simple specialize/DefaultUser-hive tweaks, folded into the same
 // enabledCommands-style lists their SystemTweaks siblings already use.
@@ -240,5 +241,159 @@ func StartTilesCommand(s profile.StartTilesSettings) string {
 	path := `C:\Users\Default\AppData\Local\Microsoft\Windows\Shell\LayoutModification.xml`
 	return wrapCommand([]string{
 		writeFileStatement(path, []byte(xmlContent)),
+	})
+}
+
+// Custom pinned taskbar icons. Mechanism sourced from the
+// reference implementation (github.com/cschneegans/unattend-generator,
+// modifier/Optimizations.cs SetTaskbarIcons and resource/
+// UnlockStartLayout.{vbs,xml}, resource/TaskbarLayout.xsd), not invented
+// from memory. A taskbar layout can only be applied through a *locked*
+// Start layout (LockedStartLayout=1 + StartLayoutFile policy in the
+// default user hive). A locked layout would stay locked forever, so the
+// reference adds an unlock flow: at first logon each account writes an
+// Application event-log entry (source UnattendGenerator, event ID 1); a
+// SYSTEM scheduled task subscribed to that event runs a VBScript that
+// sets LockedStartLayout=0 for every loaded user hive, after which the
+// user can rearrange the taskbar freely.
+
+const (
+	taskbarLayoutPath    = scriptsDir + `\unattend-taskbar-layout.xml`
+	unlockVbsPath        = scriptsDir + `\unattend-unlock-start-layout.vbs`
+	unlockTaskXMLPath    = scriptsDir + `\unattend-unlock-start-layout.xml`
+	taskbarEventSource   = "UnattendGenerator"
+	taskbarEventLogName  = "Application"
+	taskbarLayoutKeyPath = `\Software\Policies\Microsoft\Windows\Explorer`
+)
+
+// taskbarIconsEmptyXML is the reference's "empty taskbar" layout: a
+// single DesktopApp pin pointing at the "#leaveempty" sentinel replaces
+// the default pin list with nothing.
+const taskbarIconsEmptyXML = `<LayoutModificationTemplate xmlns="http://schemas.microsoft.com/Start/2014/LayoutModification" xmlns:defaultlayout="http://schemas.microsoft.com/Start/2014/FullDefaultLayout" xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout" xmlns:taskbar="http://schemas.microsoft.com/Start/2014/TaskbarLayout" Version="1">
+  <CustomTaskbarLayoutCollection PinListPlacement="Replace">
+    <defaultlayout:TaskbarLayout>
+      <taskbar:TaskbarPinList>
+        <taskbar:DesktopApp DesktopApplicationLinkPath="#leaveempty" />
+      </taskbar:TaskbarPinList>
+    </defaultlayout:TaskbarLayout>
+  </CustomTaskbarLayoutCollection>
+</LayoutModificationTemplate>
+`
+
+// unlockStartLayoutVBS is copied verbatim from resource/UnlockStartLayout.vbs
+// (line endings normalised to CRLF when written).
+const unlockStartLayoutVBS = `HKU = &H80000003
+Set reg = GetObject("winmgmts://./root/default:StdRegProv")
+Set fso = CreateObject("Scripting.FileSystemObject")
+
+If reg.EnumKey(HKU, "", sids) = 0 Then
+	If Not IsNull(sids) Then
+		For Each sid In sids
+			key = sid + "\Software\Policies\Microsoft\Windows\Explorer"
+			name = "LockedStartLayout"
+			If reg.GetDWORDValue(HKU, key, name, existing) = 0 Then
+				reg.SetDWORDValue HKU, key, name, 0
+			End If
+		Next
+	End If
+End If`
+
+// unlockStartLayoutTaskXML is copied from resource/UnlockStartLayout.xml;
+// only the script path in <Arguments> differs (our own file name).
+const unlockStartLayoutTaskXML = `<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+	<Triggers>
+		<EventTrigger>
+			<Enabled>true</Enabled>
+			<Subscription>&lt;QueryList&gt;&lt;Query Id="0" Path="Application"&gt;&lt;Select Path="Application"&gt;*[System[Provider[@Name='UnattendGenerator'] and EventID=1]]&lt;/Select&gt;&lt;/Query&gt;&lt;/QueryList&gt;</Subscription>
+		</EventTrigger>
+	</Triggers>
+	<Principals>
+		<Principal id="Author">
+			<UserId>S-1-5-18</UserId>
+			<RunLevel>LeastPrivilege</RunLevel>
+		</Principal>
+	</Principals>
+	<Settings>
+		<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+		<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+		<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+		<AllowHardTerminate>true</AllowHardTerminate>
+		<StartWhenAvailable>false</StartWhenAvailable>
+		<RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+		<IdleSettings>
+			<StopOnIdleEnd>true</StopOnIdleEnd>
+			<RestartOnIdle>false</RestartOnIdle>
+		</IdleSettings>
+		<AllowStartOnDemand>true</AllowStartOnDemand>
+		<Enabled>true</Enabled>
+		<Hidden>false</Hidden>
+		<RunOnlyIfIdle>false</RunOnlyIfIdle>
+		<WakeToRun>false</WakeToRun>
+		<ExecutionTimeLimit>PT72H</ExecutionTimeLimit>
+		<Priority>7</Priority>
+	</Settings>
+	<Actions Context="Author">
+		<Exec>
+			<Command>C:\Windows\System32\wscript.exe</Command>
+			<Arguments>C:\Windows\Setup\Scripts\unattend-unlock-start-layout.vbs</Arguments>
+		</Exec>
+	</Actions>
+</Task>`
+
+// taskbarIconsSpecializeScript runs in the specialize pass: policy that
+// stops Windows from replacing the layout with cloud-optimized content,
+// the event source the unlock flow keys on, and the unlock task itself.
+func taskbarIconsSpecializeScript() string {
+	return `reg.exe add "HKLM\Software\Policies\Microsoft\Windows\CloudContent" /v "DisableCloudOptimizedContent" /t REG_DWORD /d 1 /f;
+[System.Diagnostics.EventLog]::CreateEventSource( '` + taskbarEventSource + `', '` + taskbarEventLogName + `' );
+Register-ScheduledTask -TaskName 'UnlockStartLayout' -Xml $( Get-Content -LiteralPath "` + unlockTaskXMLPath + `" -Raw );
+`
+}
+
+// taskbarIconsUserOnceScript runs once at first logon of every account:
+// it raises the event that triggers the unlock task.
+func taskbarIconsUserOnceScript() string {
+	return `[System.Diagnostics.EventLog]::WriteEntry( '` + taskbarEventSource + `', "User '$env:USERNAME' has requested to unlock the Start menu layout.", [System.Diagnostics.EventLogEntryType]::Information, 1 );
+`
+}
+
+// TaskbarIconsCommand returns one specialize-pass command that pins the
+// requested taskbar icons for every future account and registers the
+// unlock flow described above. Returns "" for TaskbarIconsModeDefault/""
+// and for mode=custom without XML (validation rejects that earlier).
+func TaskbarIconsCommand(s profile.TaskbarIconsSettings, hidePowerShellWindows bool) string {
+	var layout string
+	switch s.Mode {
+	case profile.TaskbarIconsModeEmpty:
+		layout = taskbarIconsEmptyXML
+	case profile.TaskbarIconsModeCustom:
+		if s.XML == nil {
+			return ""
+		}
+		layout = *s.XML
+	default:
+		return ""
+	}
+
+	specializePath := scriptsDir + `\unattend-taskbar-icons.ps1`
+	userOncePath := scriptsDir + `\unattend-taskbar-icons-uo.ps1`
+	wrapperPath := scriptsDir + `\unattend-taskbar-icons-uo-run.cmd`
+	wrapper := "@echo off\r\n" + invokeCommand(profile.ScriptPs1, userOncePath, hidePowerShellWindows) + "\r\n"
+	layoutKey := defaultUserHiveKey + taskbarLayoutKeyPath
+
+	return wrapCommand([]string{
+		ensureScriptsDirStatement(),
+		writeFileStatement(taskbarLayoutPath, []byte(layout)),
+		writeFileStatement(unlockVbsPath, []byte(strings.ReplaceAll(unlockStartLayoutVBS, "\n", "\r\n"))),
+		writeFileStatement(unlockTaskXMLPath, []byte(unlockStartLayoutTaskXML)),
+		writeFileStatement(specializePath, []byte(taskbarIconsSpecializeScript())),
+		invokeCommand(profile.ScriptPs1, specializePath, hidePowerShellWindows),
+		writeFileStatement(userOncePath, []byte(taskbarIconsUserOnceScript())),
+		writeFileStatement(wrapperPath, []byte(wrapper)),
+		fmt.Sprintf(`reg.exe load %s "%s"`, defaultUserHiveKey, defaultUserHivePath),
+		fmt.Sprintf(`reg.exe add "%s" /v StartLayoutFile /t REG_SZ /d "%s" /f`, layoutKey, taskbarLayoutPath),
+		fmt.Sprintf(`reg.exe add "%s" /v LockedStartLayout /t REG_DWORD /d 1 /f`, layoutKey),
+		fmt.Sprintf(`reg.exe add "%s" /v UnattendTaskbarIconsUnlock /d "%s" /f`, defaultUserRunOnceKey, wrapperPath),
+		fmt.Sprintf(`reg.exe unload %s`, defaultUserHiveKey),
 	})
 }
