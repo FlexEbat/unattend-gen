@@ -125,16 +125,16 @@ type SystemTweaks struct {
 	DisableAppSuggestions      bool `json:"disable_app_suggestions"`
 	DisablePointerPrecision    bool `json:"disable_pointer_precision"`
 	PreventDeviceApps          bool `json:"prevent_device_apps"`
-	HardenSystemDriveACL  bool `json:"harden_system_drive_acl"`
-	MakeEdgeUninstallable bool `json:"make_edge_uninstallable"`
-	DeleteWindowsOld      bool `json:"delete_windows_old"`
-	DisableCoreIsolation bool `json:"disable_core_isolation"`
-	DeleteEdgeDesktopIcon bool `json:"delete_edge_desktop_icon"`
-	DisableWidgets     bool `json:"disable_widgets"`
-	LeftTaskbar        bool `json:"left_taskbar"`
-	HideTaskViewButton bool `json:"hide_task_view_button"`
-	DisableBingResults bool `json:"disable_bing_results"`
-	ShowAllTrayIcons   bool `json:"show_all_tray_icons"`
+	HardenSystemDriveACL       bool `json:"harden_system_drive_acl"`
+	MakeEdgeUninstallable      bool `json:"make_edge_uninstallable"`
+	DeleteWindowsOld           bool `json:"delete_windows_old"`
+	DisableCoreIsolation       bool `json:"disable_core_isolation"`
+	DeleteEdgeDesktopIcon      bool `json:"delete_edge_desktop_icon"`
+	DisableWidgets             bool `json:"disable_widgets"`
+	LeftTaskbar                bool `json:"left_taskbar"`
+	HideTaskViewButton         bool `json:"hide_task_view_button"`
+	DisableBingResults         bool `json:"disable_bing_results"`
+	ShowAllTrayIcons           bool `json:"show_all_tray_icons"`
 }
 
 // WifiAuthentication is the authentication type of a pre-configured Wi-Fi profile.
@@ -198,16 +198,16 @@ const (
 	AppVoiceRecorder       RemovableApp = "VoiceRecorder"
 	AppWeather             RemovableApp = "Weather"
 	AppXboxApps            RemovableApp = "XboxApps"
-	AppBingSearch  RemovableApp = "BingSearch"
-	AppDevHome     RemovableApp = "DevHome"
-	AppGameAssist  RemovableApp = "GameAssist"
-	AppStore       RemovableApp = "Store"
-	AppNotepad     RemovableApp = "Notepad"
-	AppOutlook     RemovableApp = "Outlook"
-	AppPaint       RemovableApp = "Paint"
-	AppWallet      RemovableApp = "Wallet"
-	AppMediaPlayer RemovableApp = "MediaPlayerModern"
-	AppTerminal    RemovableApp = "Terminal"
+	AppBingSearch          RemovableApp = "BingSearch"
+	AppDevHome             RemovableApp = "DevHome"
+	AppGameAssist          RemovableApp = "GameAssist"
+	AppStore               RemovableApp = "Store"
+	AppNotepad             RemovableApp = "Notepad"
+	AppOutlook             RemovableApp = "Outlook"
+	AppPaint               RemovableApp = "Paint"
+	AppWallet              RemovableApp = "Wallet"
+	AppMediaPlayer         RemovableApp = "MediaPlayerModern"
+	AppTerminal            RemovableApp = "Terminal"
 	// AppOneDrive uses a different mechanism (no Appx package to remove -
 	// deletes leftover files and a run-key, see RemoveOneDrive*Command in
 	// apps.go), not the DisplayName-pattern map below.
@@ -242,10 +242,10 @@ const (
 	FeatureMediaPlayer      RemovableFeature = "MediaPlayer"
 	FeatureSpeech           RemovableFeature = "Speech"
 	FeatureHandwriting      RemovableFeature = "Handwriting"
-	FeatureWindowsHello   RemovableFeature = "WindowsHello"
-	FeatureMathInputPanel RemovableFeature = "MathInputPanel"
-	FeatureOneSync        RemovableFeature = "OneSync"
-	FeatureStepsRecorder  RemovableFeature = "StepsRecorder"
+	FeatureWindowsHello     RemovableFeature = "WindowsHello"
+	FeatureMathInputPanel   RemovableFeature = "MathInputPanel"
+	FeatureOneSync          RemovableFeature = "OneSync"
+	FeatureStepsRecorder    RemovableFeature = "StepsRecorder"
 )
 
 // RemovableFeatures lists every valid RemoveFeatures entry, in the order

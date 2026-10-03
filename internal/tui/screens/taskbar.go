@@ -34,10 +34,9 @@ var taskbarIconsModeOptions = []widgets.SelectOption{
 }
 
 // Taskbar is the Start menu/taskbar screen: 5 simple checkboxes, a
-// taskbar-search-mode select, and
-// Start pins (Windows 11)/tiles (Windows 10)/taskbar icons each
-// with their own default/empty/custom mode select - the custom text area only appears
-// when its mode is Custom.
+// taskbar-search-mode select, and Start pins (Windows 11), tiles
+// (Windows 10) and taskbar icons, each with its own default/empty/custom
+// mode select. The custom text area only appears when its mode is Custom.
 type Taskbar struct {
 	profile *profile.Profile
 

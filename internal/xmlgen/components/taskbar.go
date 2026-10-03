@@ -7,12 +7,11 @@ import (
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 )
 
-// Mechanisms sourced from the reference implementation
-// (github.com/cschneegans/unattend-generator, modifier/Optimizations.cs
-// and resource/ShowAllTrayIcons.*), not invented from memory. The most
-// elaborate sub-feature of this section - custom pinned taskbar icons via
-// a locked Start layout XML + scheduled-task-based unlock flow - was added
-// separately in .
+// Start menu and taskbar settings. Mechanisms sourced from the reference
+// implementation (github.com/cschneegans/unattend-generator,
+// modifier/Optimizations.cs and resource/ShowAllTrayIcons.*), not invented
+// from memory. Custom pinned taskbar icons (a locked Start layout plus an
+// unlock flow) are implemented further down, see TaskbarIconsCommand.
 
 // Simple specialize/DefaultUser-hive tweaks, folded into the same
 // enabledCommands-style lists their SystemTweaks siblings already use.
