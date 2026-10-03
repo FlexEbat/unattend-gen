@@ -1,5 +1,7 @@
 # unattend-gen
 
+English | [Русский](README.ru.md)
+
 CLI and TUI tool that generates `autounattend.xml` answer files for
 unattended Windows 10/11 installs. It's a terminal counterpart to
 [schneegans.de/windows/unattend-generator](https://schneegans.de/windows/unattend-generator/):
@@ -11,9 +13,9 @@ TUI both read and write the same profile format and build the XML through
 the same code path, so a given profile always produces the same answer file
 no matter how it was filled in.
 
-**Full documentation:** see [docs/USAGE.md](docs/USAGE.md) for every CLI
-command, a screen-by-screen TUI walkthrough, and a complete reference for
-every field a profile can contain.
+**Full documentation:** see [docs/USAGE.md](docs/USAGE.md)
+([Русский](docs/USAGE.ru.md)) for every CLI command, a screen-by-screen TUI
+walkthrough, and a complete reference for every field a profile can contain.
 
 ## Features
 
@@ -148,4 +150,6 @@ go test ./... -race
 
 ## License
 
-[GPL-3.0](LICENSE)
+[GPL-3.0](LICENSE). Parts of the generated scripts and lists are adapted
+from [cschneegans/unattend-generator](https://github.com/cschneegans/unattend-generator)
+(MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
