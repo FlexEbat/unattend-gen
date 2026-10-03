@@ -1,6 +1,6 @@
 # unattend-gen
 
-English | [Русский](README.ru.md)
+English | [Русский](README.ru.md) | [简体中文](README.zh-CN.md) | [Español](README.es.md) | [हिन्दी](README.hi.md)
 
 CLI and TUI tool that generates `autounattend.xml` answer files for
 unattended Windows 10/11 installs. It's a terminal counterpart to

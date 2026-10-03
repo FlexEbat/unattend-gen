@@ -1,6 +1,6 @@
 # unattend-gen
 
-[English](README.md) | Русский
+[English](README.md) | Русский | [简体中文](README.zh-CN.md) | [Español](README.es.md) | [हिन्दी](README.hi.md)
 
 CLI- и TUI-инструмент, который генерирует файлы ответов `autounattend.xml`
 для автоматической установки Windows 10/11. Это терминальный аналог

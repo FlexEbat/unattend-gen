@@ -1,6 +1,6 @@
 # unattend-gen — руководство пользователя
 
-[English](USAGE.md) | Русский
+[English](USAGE.md) | Русский | [简体中文](USAGE.zh-CN.md) | [Español](USAGE.es.md) | [हिन्दी](USAGE.hi.md)
 
 Это полный справочник по `unattend-gen`: CLI/TUI-инструменту на Go, который
 генерирует файлы ответов `autounattend.xml` для Windows 10/11. Вы один раз
