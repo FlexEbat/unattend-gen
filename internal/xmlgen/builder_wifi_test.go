@@ -41,7 +41,7 @@ type testWifiDoc struct {
 // first FirstLogonCommands entry, or "" if there is none.
 func wifiCommandLine(t *testing.T, p *profile.Profile) string {
 	t.Helper()
-	xmlStr, err := BuildAnswerFile(p)
+	xmlStr, err := buildInline(p)
 	if err != nil {
 		t.Fatalf("BuildAnswerFile: %v", err)
 	}
@@ -70,7 +70,7 @@ func wifiCommandLine(t *testing.T, p *profile.Profile) string {
 // the oobeSystem Shell-Setup component, in Order.
 func allFirstLogonCommandLines(t *testing.T, p *profile.Profile) []string {
 	t.Helper()
-	xmlStr, err := BuildAnswerFile(p)
+	xmlStr, err := buildInline(p)
 	if err != nil {
 		t.Fatalf("BuildAnswerFile: %v", err)
 	}

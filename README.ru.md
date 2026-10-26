@@ -108,12 +108,13 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o unattend-gen.exe ./cmd/unatt
 Создайте профиль, проверьте его и превратите в файл ответов:
 
 ```sh
-unattend-gen profile init demo                    # demo.json со значениями по умолчанию
+unattend-gen profile init demo                    # profiles/demo.json со значениями по умолчанию
 unattend-gen profile init demo --preset minimal    # или начните с пресета
 unattend-gen profile list                          # список профилей в ./profiles
-unattend-gen validate demo.json                     # код возврата 0 или 1
-unattend-gen generate demo.json                     # пишет autounattend.xml рядом с профилем
-unattend-gen generate demo.json -o out.xml          # или по выбранному пути
+unattend-gen validate profiles/demo.json                     # код возврата 0 или 1
+unattend-gen generate profiles/demo.json            # пишет autounattend.xml рядом с профилем (--force — заменить)
+unattend-gen generate profiles/demo.json -o out.xml # или по выбранному пути (-o - — вывод в stdout)
+unattend-gen schema > profile.schema.json           # JSON Schema для автодополнения в редакторе
 ```
 
 Или заполните профиль интерактивно:

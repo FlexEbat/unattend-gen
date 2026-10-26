@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+  <settings pass="windowsPE">
+    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+  </settings>
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <RunSynchronous>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Path>powershell.exe -NoProfile -Command &#34;$xml = [xml]::new(); $xml.Load(&#39;C:\Windows\Panther\unattend.xml&#39;); $sb = [scriptblock]::Create( $xml.unattend.Extensions.ExtractScript ); Invoke-Command -ScriptBlock $sb -ArgumentList $xml;&#34;</Path>
+        </RunSynchronousCommand>
+      </RunSynchronous>
+    </component>
+  </settings>
+  <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <OOBE>
+        <ProtectYourPC>3</ProtectYourPC>
+        <HideEULAPage>true</HideEULAPage>
+        <HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
+        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+        <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
+        <HideLocalAccountScreen>true</HideLocalAccountScreen>
+        <NetworkLocation>Work</NetworkLocation>
+      </OOBE>
+      <UserAccounts>
+        <LocalAccounts>
+          <LocalAccount wcm:action="add">
+            <Group>Administrators</Group>
+            <Name>admin</Name>
+          </LocalAccount>
+        </LocalAccounts>
+      </UserAccounts>
+      <AutoLogon>
+        <Enabled>true</Enabled>
+        <LogonCount>1</LogonCount>
+        <Username>admin</Username>
+      </AutoLogon>
+      <FirstLogonCommands>
+        <SynchronousCommand wcm:action="add">
+          <CommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -File &#34;C:\Windows\Setup\Scripts\unattend-cmd-001.ps1&#34;</CommandLine>
+          <Order>1</Order>
+        </SynchronousCommand>
+      </FirstLogonCommands>
+    </component>
+  </settings>
+  <Extensions xmlns="https://schneegans.de/windows/unattend-generator/">
+    <ExtractScript><![CDATA[param(
+    [xml] $Document
+);
+
+foreach( $file in $Document.unattend.Extensions.File ) {
+    $path = [System.Environment]::ExpandEnvironmentVariables( $file.GetAttribute( 'path' ) );
+    mkdir -Path( $path | Split-Path -Parent ) -ErrorAction 'SilentlyContinue';
+    $encoding = switch( [System.IO.Path]::GetExtension( $path ) ) {
+        { $_ -in '.ps1', '.xml' } { [System.Text.Encoding]::UTF8; }
+        { $_ -in '.reg', '.vbs', '.js' } { [System.Text.UnicodeEncoding]::new( $false, $true ); }
+        default { [System.Text.Encoding]::Default; }
+    };
+    $bytes = $encoding.GetPreamble() + $encoding.GetBytes( $file.InnerText.Trim() );
+    [System.IO.File]::WriteAllBytes( $path, $bytes );
+}]]></ExtractScript>
+    <File path="C:\Windows\Setup\Scripts\unattend-cmd-001.ps1"><![CDATA[New-Item -ItemType Directory -Force -Path "C:\Windows\Setup\Scripts" | Out-Null;[IO.File]::WriteAllBytes("C:\Windows\Setup\Scripts\unattend-delete-sensitive-files.ps1",[Convert]::FromBase64String('QCgKCSdDOlxXaW5kb3dzXFBhbnRoZXJcdW5hdHRlbmQueG1sJzsKCSdDOlxXaW5kb3dzXFBhbnRoZXJcdW5hdHRlbmQtb3JpZ2luYWwueG1sJzsKCSIkZW52OlRFTVBcd2lmaS1wcm9maWxlLnhtbCI7CikgfCBXaGVyZS1PYmplY3QgLUZpbHRlclNjcmlwdCB7IFtTeXN0ZW0uSU8uRmlsZV06OkV4aXN0cyggJF8gKTsgfSB8IFJlbW92ZS1JdGVtIC1Gb3JjZSAtVmVyYm9zZSAtRXJyb3JBY3Rpb24gJ0NvbnRpbnVlJzsKR2V0LUNoaWxkSXRlbSAtTGl0ZXJhbFBhdGggJ0M6XFdpbmRvd3NcU2V0dXBcU2NyaXB0cycgLUZpbHRlciAndW5hdHRlbmQtY21kLSonIC1FcnJvckFjdGlvbiAnU2lsZW50bHlDb250aW51ZScgfCBSZW1vdmUtSXRlbSAtRm9yY2UgLVZlcmJvc2UgLUVycm9yQWN0aW9uICdDb250aW51ZSc7Cg=='));powershell.exe -WindowStyle Normal -ExecutionPolicy Unrestricted -NoProfile -File "C:\Windows\Setup\Scripts\unattend-delete-sensitive-files.ps1"]]></File>
+  </Extensions>
+</unattend>

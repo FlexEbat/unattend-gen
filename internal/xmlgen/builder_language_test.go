@@ -40,7 +40,7 @@ type testDoc struct {
 
 func buildAndParse(t *testing.T, p *profile.Profile) testDoc {
 	t.Helper()
-	xmlStr, err := BuildAnswerFile(p)
+	xmlStr, err := buildInline(p)
 	if err != nil {
 		t.Fatalf("BuildAnswerFile: %v", err)
 	}

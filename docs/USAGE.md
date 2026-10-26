@@ -80,15 +80,15 @@ If you'd rather work from JSON directly:
 # Start a new profile with default (mostly interactive) settings
 ./unattend-gen profile init my-pc
 
-# ...edit my-pc.json by hand, or continue in the TUI:
-./unattend-gen tui my-pc.json
+# ...edit profiles/my-pc.json by hand, or continue in the TUI:
+./unattend-gen tui profiles/my-pc.json
 
 # Check it's valid
-./unattend-gen validate my-pc.json
+./unattend-gen validate profiles/my-pc.json
 
 # Generate the answer file (writes autounattend.xml next to the profile
 # by default)
-./unattend-gen generate my-pc.json
+./unattend-gen generate profiles/my-pc.json
 ```
 
 Copy the resulting `autounattend.xml` to the root of your Windows install
@@ -102,9 +102,12 @@ Every command validates its input up front and fails loudly (non-zero
 exit code, error text on stderr) rather than generating a partial or
 guessed-at file.
 
-### `profile init <name> [--preset minimal|single-user]`
+### `profile init <name> [--preset minimal|single-user] [--force]`
 
-Creates `<name>.json` in the current directory. Without `--preset`, the
+Creates `profiles/<name>.json` (the directory is created if needed; `<name>`
+must not contain path separators). An existing profile is only replaced
+with `--force`. Profiles can hold passwords, so the file is written with
+permissions `0600`. Without `--preset`, the
 profile starts from built-in defaults (language/locale/keyboard `en-US`,
 everything else close to "ask me during setup" — see
 [`profile.Default`](#defaults) below). With `--preset`, it starts from one
@@ -114,7 +117,7 @@ regardless of what the preset file says.
 
 ```sh
 ./unattend-gen profile init laptop --preset single-user
-# -> laptop.json
+# -> profiles/laptop.json
 ```
 
 ### `profile list`
@@ -140,16 +143,45 @@ exits 0 if the profile is valid.
 ./unattend-gen validate laptop.json
 ```
 
-### `generate <profile.json> [-o path]`
+### `generate <profile.json> [-o path] [--force]`
 
 Validates the profile, then builds and writes the answer file. Without
 `-o`/`--output`, the file is written as `autounattend.xml` in the same
-directory as the profile. Prints the path it wrote on success.
+directory as the profile. Prints the path it wrote on success. The answer
+file can contain passwords, so it is written with permissions `0600`, and an
+existing file is only replaced with `--force`. `-o -` prints the XML to
+stdout instead of writing a file.
 
 ```sh
 ./unattend-gen generate laptop.json
-./unattend-gen generate laptop.json -o /media/usb/autounattend.xml
+./unattend-gen generate laptop.json -o /media/usb/autounattend.xml --force
+./unattend-gen generate laptop.json -o - > autounattend.xml
 ```
+
+Non-fatal **warnings** about valid but risky settings (plaintext passwords,
+`disable_uac`, `disable_windows_update`, ...) are printed to stderr by
+`validate`, `generate` and `profile show`; they never change the exit code.
+
+Windows Setup limits a command to 259 characters. Commands longer than that
+are split (`a && b` chains) or moved into files that the answer file carries
+in an `<Extensions>` element and a short first command extracts during the
+specialize pass (the same mechanism the reference implementation uses).
+The extracted `unattend-cmd-*` files are removed again by the sensitive-files
+cleanup unless `keep_sensitive_files` is set.
+
+### `profile show <profile.json>`
+
+Validates the profile and prints it as JSON with every password replaced by
+`********`.
+
+### `schema`
+
+Prints a JSON Schema (draft 2020-12) of the profile file, generated from the
+same types the validator uses. Point your editor at it for autocompletion.
+
+### `--version`
+
+Prints the version the binary was built with (`dev` for a plain `go build`).
 
 ### `tui [profile.json]`
 
@@ -244,6 +276,9 @@ default behavior alone" — with one deliberate exception noted where it
 comes up.
 
 ### Top level
+
+Unknown fields are rejected: a typo such as `"acounts"` is an error, not a
+silently ignored key.
 
 | Field | Type | Notes |
 |---|---|---|

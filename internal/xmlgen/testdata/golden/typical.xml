@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+  <settings pass="windowsPE">
+    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+  </settings>
+  <settings pass="specialize">
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <InputLocale>en-US</InputLocale>
+      <SystemLocale>en-US</SystemLocale>
+      <UILanguage>en-US</UILanguage>
+      <UserLocale>en-US</UserLocale>
+    </component>
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <RunSynchronous>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>1</Order>
+          <Path>powershell.exe -NoProfile -Command &#34;$xml = [xml]::new(); $xml.Load(&#39;C:\Windows\Panther\unattend.xml&#39;); $sb = [scriptblock]::Create( $xml.unattend.Extensions.ExtractScript ); Invoke-Command -ScriptBlock $sb -ArgumentList $xml;&#34;</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>2</Order>
+          <Path>cmd.exe /c reg add &#34;HKLM\SOFTWARE\Policies\Microsoft\Windows\System&#34; /v EnableSmartScreen /t REG_DWORD /d 0 /f &amp;&amp; reg add &#34;HKLM\SOFTWARE\Policies\Microsoft\Edge&#34; /v SmartScreenEnabled /t REG_DWORD /d 0 /f</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>3</Order>
+          <Path>cmd.exe /c reg add &#34;HKLM\SYSTEM\CurrentControlSet\Control\FileSystem&#34; /v LongPathsEnabled /t REG_DWORD /d 1 /f</Path>
+        </RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add">
+          <Order>4</Order>
+          <Path>powershell.exe -NoProfile -ExecutionPolicy Bypass -File &#34;C:\Windows\Setup\Scripts\unattend-cmd-001.ps1&#34;</Path>
+        </RunSynchronousCommand>
+      </RunSynchronous>
+    </component>
+  </settings>
+  <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
+      <OOBE>
+        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>
+      </OOBE>
+      <UserAccounts>
+        <LocalAccounts>
+          <LocalAccount wcm:action="add">
+            <Password>
+              <Value>correct horse</Value>
+              <PlainText>true</PlainText>
+            </Password>
+            <Group>Administrators</Group>
+            <Name>user</Name>
+          </LocalAccount>
+        </LocalAccounts>
+      </UserAccounts>
+      <AutoLogon>
+        <Password>
+          <Value>correct horse</Value>
+          <PlainText>true</PlainText>
+        </Password>
+        <Enabled>true</Enabled>
+        <LogonCount>1</LogonCount>
+        <Username>user</Username>
+      </AutoLogon>
+      <FirstLogonCommands>
+        <SynchronousCommand wcm:action="add">
+          <CommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -File &#34;C:\Windows\Setup\Scripts\unattend-cmd-002.ps1&#34;</CommandLine>
+          <Order>1</Order>
+        </SynchronousCommand>
+        <SynchronousCommand wcm:action="add">
+          <CommandLine>powershell.exe -NoProfile -ExecutionPolicy Bypass -File &#34;C:\Windows\Setup\Scripts\unattend-cmd-003.ps1&#34;</CommandLine>
+          <Order>2</Order>
+        </SynchronousCommand>
+      </FirstLogonCommands>
+    </component>
+  </settings>
+  <Extensions xmlns="https://schneegans.de/windows/unattend-generator/">
+    <ExtractScript><![CDATA[param(
+    [xml] $Document
+);
+
+foreach( $file in $Document.unattend.Extensions.File ) {
+    $path = [System.Environment]::ExpandEnvironmentVariables( $file.GetAttribute( 'path' ) );
+    mkdir -Path( $path | Split-Path -Parent ) -ErrorAction 'SilentlyContinue';
+    $encoding = switch( [System.IO.Path]::GetExtension( $path ) ) {
+        { $_ -in '.ps1', '.xml' } { [System.Text.Encoding]::UTF8; }
+        { $_ -in '.reg', '.vbs', '.js' } { [System.Text.UnicodeEncoding]::new( $false, $true ); }
+        default { [System.Text.Encoding]::Default; }
+    };
+    $bytes = $encoding.GetPreamble() + $encoding.GetBytes( $file.InnerText.Trim() );
+    [System.IO.File]::WriteAllBytes( $path, $bytes );
+}]]></ExtractScript>
+    <File path="C:\Windows\Setup\Scripts\unattend-cmd-001.ps1"><![CDATA[New-Item -ItemType Directory -Force -Path "C:\Windows\Setup\Scripts" | Out-Null;[IO.File]::WriteAllBytes("C:\Windows\Setup\Scripts\unattend-sys-01.ps1",[Convert]::FromBase64String('V3JpdGUtSG9zdCBoZWxsbw=='));powershell.exe -WindowStyle Normal -ExecutionPolicy Unrestricted -NoProfile -File "C:\Windows\Setup\Scripts\unattend-sys-01.ps1"]]></File>
+    <File path="C:\Windows\Setup\Scripts\unattend-cmd-002.ps1"><![CDATA[[IO.File]::WriteAllBytes('$env:TEMP\wifi-profile.xml',[Convert]::FromBase64String('PD94bWwgdmVyc2lvbj0iMS4wIj8+PFdMQU5Qcm9maWxlIHhtbG5zPSJodHRwOi8vd3d3Lm1pY3Jvc29mdC5jb20vbmV0d29ya2luZy9XTEFOL3Byb2ZpbGUvdjEiPjxuYW1lPmhvbWU8L25hbWU+PFNTSURDb25maWc+PFNTSUQ+PG5hbWU+aG9tZTwvbmFtZT48L1NTSUQ+PG5vbkJyb2FkY2FzdD5mYWxzZTwvbm9uQnJvYWRjYXN0PjwvU1NJRENvbmZpZz48Y29ubmVjdGlvblR5cGU+RVNTPC9jb25uZWN0aW9uVHlwZT48Y29ubmVjdGlvbk1vZGU+YXV0bzwvY29ubmVjdGlvbk1vZGU+PE1TTT48c2VjdXJpdHk+PGF1dGhFbmNyeXB0aW9uPjxhdXRoZW50aWNhdGlvbj5XUEEyUFNLPC9hdXRoZW50aWNhdGlvbj48ZW5jcnlwdGlvbj5BRVM8L2VuY3J5cHRpb24+PHVzZU9uZVg+ZmFsc2U8L3VzZU9uZVg+PC9hdXRoRW5jcnlwdGlvbj48c2hhcmVkS2V5PjxrZXlUeXBlPnBhc3NQaHJhc2U8L2tleVR5cGU+PHByb3RlY3RlZD5mYWxzZTwvcHJvdGVjdGVkPjxrZXlNYXRlcmlhbD5jb3JyZWN0IGhvcnNlPC9rZXlNYXRlcmlhbD48L3NoYXJlZEtleT48L3NlY3VyaXR5PjwvTVNNPjwvV0xBTlByb2ZpbGU+'));netsh wlan add profile filename="$env:TEMP\wifi-profile.xml" user=all]]></File>
+    <File path="C:\Windows\Setup\Scripts\unattend-cmd-003.ps1"><![CDATA[New-Item -ItemType Directory -Force -Path "C:\Windows\Setup\Scripts" | Out-Null;[IO.File]::WriteAllBytes("C:\Windows\Setup\Scripts\unattend-delete-sensitive-files.ps1",[Convert]::FromBase64String('QCgKCSdDOlxXaW5kb3dzXFBhbnRoZXJcdW5hdHRlbmQueG1sJzsKCSdDOlxXaW5kb3dzXFBhbnRoZXJcdW5hdHRlbmQtb3JpZ2luYWwueG1sJzsKCSIkZW52OlRFTVBcd2lmaS1wcm9maWxlLnhtbCI7CikgfCBXaGVyZS1PYmplY3QgLUZpbHRlclNjcmlwdCB7IFtTeXN0ZW0uSU8uRmlsZV06OkV4aXN0cyggJF8gKTsgfSB8IFJlbW92ZS1JdGVtIC1Gb3JjZSAtVmVyYm9zZSAtRXJyb3JBY3Rpb24gJ0NvbnRpbnVlJzsKR2V0LUNoaWxkSXRlbSAtTGl0ZXJhbFBhdGggJ0M6XFdpbmRvd3NcU2V0dXBcU2NyaXB0cycgLUZpbHRlciAndW5hdHRlbmQtY21kLSonIC1FcnJvckFjdGlvbiAnU2lsZW50bHlDb250aW51ZScgfCBSZW1vdmUtSXRlbSAtRm9yY2UgLVZlcmJvc2UgLUVycm9yQWN0aW9uICdDb250aW51ZSc7Cg=='));powershell.exe -WindowStyle Normal -ExecutionPolicy Unrestricted -NoProfile -File "C:\Windows\Setup\Scripts\unattend-delete-sensitive-files.ps1"]]></File>
+  </Extensions>
+</unattend>

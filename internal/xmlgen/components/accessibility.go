@@ -120,7 +120,7 @@ func buildScancodeMap(scancodes []uint16) []byte {
 	buf = append(buf, 0, 0, 0, 0) // Version
 	buf = append(buf, 0, 0, 0, 0) // Flags
 	count := make([]byte, 4)
-	binary.LittleEndian.PutUint32(count, uint32(len(scancodes)+1))
+	binary.LittleEndian.PutUint32(count, uint32(len(scancodes)+1)) //nolint:gosec // a handful of entries at most
 	buf = append(buf, count...)
 	for _, sc := range scancodes {
 		buf = append(buf, 0x00, 0x00, byte(sc&0xFF), byte(sc>>8)) // target 0x0000, source sc

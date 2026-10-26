@@ -27,6 +27,7 @@ const keepSensitiveFilesScript = `@(
 	'C:\Windows\Panther\unattend-original.xml';
 	"$env:TEMP\wifi-profile.xml";
 ) | Where-Object -FilterScript { [System.IO.File]::Exists( $_ ); } | Remove-Item -Force -Verbose -ErrorAction 'Continue';
+Get-ChildItem -LiteralPath 'C:\Windows\Setup\Scripts' -Filter 'unattend-cmd-*' -ErrorAction 'SilentlyContinue' | Remove-Item -Force -Verbose -ErrorAction 'Continue';
 `
 
 // KeepSensitiveFilesFirstLogonCommand returns one oobeSystem/
