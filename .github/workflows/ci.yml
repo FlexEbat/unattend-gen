@@ -70,8 +70,14 @@ jobs:
       - name: govulncheck
         run: |
           go version
-          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           set +e
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0 > vuln.log 2>&1
+          code=$?
+          if [ $code -ne 0 ]; then
+            cat vuln.log
+            head -10 vuln.log | while IFS= read -r line; do echo "::error::install: ${line}"; done
+            exit $code
+          fi
           govulncheck ./... > vuln.log 2>&1
           code=$?
           set -e
