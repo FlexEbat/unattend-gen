@@ -65,7 +65,9 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          # govulncheck itself needs a current Go (v1.9.0 requires >= 1.26);
+          # the dependency check does not depend on the go directive.
+          go-version: "1.26"
 
       - name: govulncheck
         run: |
