@@ -60,7 +60,7 @@ type testAccountsDoc struct {
 
 func buildAndParseAccounts(t *testing.T, p *profile.Profile) testAccountsDoc {
 	t.Helper()
-	xmlStr, err := BuildAnswerFile(p)
+	xmlStr, err := buildInline(p)
 	if err != nil {
 		t.Fatalf("BuildAnswerFile: %v", err)
 	}

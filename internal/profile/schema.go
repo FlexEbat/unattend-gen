@@ -67,7 +67,7 @@ const (
 type UserAccount struct {
 	Name        string       `json:"name" validate:"required,max=20"`
 	DisplayName *string      `json:"display_name"`
-	Password    *string      `json:"password" validate:"omitempty,min=1"` // empty string invalid, nil = no password
+	Password    *string      `json:"password"` // empty string invalid, nil = no password
 	Group       AccountGroup `json:"group" validate:"required,oneof=Administrators Users"`
 }
 

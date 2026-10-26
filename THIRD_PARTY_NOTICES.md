@@ -2,7 +2,9 @@
 
 Some scripts, registry values and component lists in this project (for
 example the Start layout unlock task, the tray-icon and computer-name
-scripts, and the bloatware and desktop-icon lists) are adapted from
+scripts, the file-extraction script and `<Extensions>` mechanism used to keep
+commands within Windows Setup's length limit, and the bloatware and
+desktop-icon lists) are adapted from
 [cschneegans/unattend-generator](https://github.com/cschneegans/unattend-generator),
 which is distributed under the MIT License:
 

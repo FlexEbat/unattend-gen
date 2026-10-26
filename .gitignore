@@ -1,3 +1,7 @@
 /unattend-gen
 *.exe
 profiles/*.json
+# Answer files and ad-hoc profiles can contain passwords.
+autounattend.xml
+*.autounattend.xml
+/*.json

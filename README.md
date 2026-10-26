@@ -103,12 +103,13 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o unattend-gen.exe ./cmd/unatt
 Create a profile, check it, and turn it into an answer file:
 
 ```sh
-unattend-gen profile init demo                    # demo.json with default values
+unattend-gen profile init demo                    # profiles/demo.json with default values
 unattend-gen profile init demo --preset minimal    # or start from a preset
 unattend-gen profile list                          # list profiles in ./profiles
-unattend-gen validate demo.json                     # exit code 0 or 1
-unattend-gen generate demo.json                     # writes autounattend.xml next to it
-unattend-gen generate demo.json -o out.xml          # or to a chosen path
+unattend-gen validate profiles/demo.json            # exit code 0 or 1
+unattend-gen generate profiles/demo.json            # writes autounattend.xml next to it (--force to replace)
+unattend-gen generate profiles/demo.json -o out.xml # or to a chosen path (-o - prints to stdout)
+unattend-gen schema > profile.schema.json           # JSON Schema for editor autocompletion
 ```
 
 Or fill in a profile interactively:

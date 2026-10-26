@@ -1,0 +1,54 @@
+name: Release
+
+# Pushing a tag such as v0.29.0 builds the binaries, checksums them and
+# publishes a GitHub release. Only this job gets write access.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: test
+        run: go test ./... -race
+
+      - name: build archives
+        env:
+          CGO_ENABLED: 0
+          VERSION: ${{ github.ref_name }}
+        run: |
+          mkdir dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            goos="${target%/*}"; goarch="${target#*/}"
+            ext=""; [ "$goos" = "windows" ] && ext=".exe"
+            name="unattend-gen_${VERSION}_${goos}_${goarch}"
+            GOOS="$goos" GOARCH="$goarch" go build -trimpath \
+              -ldflags "-s -w -X github.com/FlexEbat/unattend-gen/internal/cli.version=${VERSION}" \
+              -o "dist/unattend-gen$ext" ./cmd/unattend-gen
+            if [ "$goos" = "windows" ]; then
+              (cd dist && zip -q "$name.zip" "unattend-gen$ext" ../LICENSE ../THIRD_PARTY_NOTICES.md)
+            else
+              tar -C dist -czf "dist/$name.tar.gz" "unattend-gen$ext" -C .. LICENSE THIRD_PARTY_NOTICES.md
+            fi
+            rm "dist/unattend-gen$ext"
+          done
+          (cd dist && sha256sum * > SHA256SUMS)
+
+      - name: publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/* --generate-notes --verify-tag

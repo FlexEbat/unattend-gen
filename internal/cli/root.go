@@ -3,6 +3,11 @@ package cli
 
 import "github.com/spf13/cobra"
 
+// version is overridden at build time:
+//
+//	go build -ldflags "-X github.com/FlexEbat/unattend-gen/internal/cli.version=v0.29.0"
+var version = "dev"
+
 // NewRootCmd builds the unattend-gen command tree. Exported so tests can
 // call it directly and redirect SetArgs/SetOut/SetErr without going through
 // os.Args or the process's real stdout/stderr.
@@ -10,12 +15,14 @@ func NewRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:           "unattend-gen",
 		Short:         "Generate Windows autounattend.xml answer files",
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 	root.AddCommand(newProfileCmd())
 	root.AddCommand(newValidateCmd())
 	root.AddCommand(newGenerateCmd())
+	root.AddCommand(newSchemaCmd())
 	root.AddCommand(newTUICmd())
 	return root
 }

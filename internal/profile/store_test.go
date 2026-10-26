@@ -2,8 +2,11 @@ package profile
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -134,5 +137,66 @@ func TestPresetSingleUserValidates(t *testing.T) {
 	}
 	if result := ValidateProfile(data); len(result.Errors) != 0 {
 		t.Fatalf("preset single-user should validate, got errors: %v", result.Errors)
+	}
+}
+
+func TestDecodeProfileRejectsUnknownFieldsAndTrailingData(t *testing.T) {
+	if _, err := DecodeProfile([]byte(`{"schema_version":1,"nam":"x"}`)); err == nil {
+		t.Fatal("expected an error for an unknown field")
+	}
+	if _, err := DecodeProfile([]byte(`{"schema_version":1} {"schema_version":1}`)); err == nil {
+		t.Fatal("expected an error for trailing data")
+	}
+	if _, err := DecodeProfile([]byte(`{"schema_version":1}` + "\n")); err != nil {
+		t.Fatalf("trailing whitespace must be accepted: %v", err)
+	}
+}
+
+func TestLoadProfileRejectsUnknownFields(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "typo.json")
+	if err := os.WriteFile(path, []byte(`{"schema_version":1,"acounts":[]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadProfile(path); err == nil || !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("want an unknown-field error, got %v", err)
+	}
+}
+
+func TestProfilePathRejectsTraversal(t *testing.T) {
+	for _, name := range []string{"", ".", "..", "../x", `a\b`, "a/b"} {
+		if _, err := ProfilePath(name); err == nil {
+			t.Errorf("ProfilePath(%q) should fail", name)
+		}
+	}
+	got, err := ProfilePath("laptop")
+	if err != nil || got != filepath.Join("profiles", "laptop.json") {
+		t.Fatalf("ProfilePath(laptop) = %q, %v", got, err)
+	}
+}
+
+func TestSaveProfileIsPrivateAtomicAndCreatesDirs(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "profiles", "nested")
+	path := filepath.Join(dir, "demo.json")
+	p := Default("demo")
+	for i := 0; i < 2; i++ { // second call replaces the first
+		if err := SaveProfile(p, path); err != nil {
+			t.Fatalf("SaveProfile #%d: %v", i+1, err)
+		}
+	}
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Fatalf("profile permissions = %o, want 600", perm)
+		}
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("temporary files left behind: %v", entries)
 	}
 }

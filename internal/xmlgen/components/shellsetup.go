@@ -118,15 +118,38 @@ type Deployment struct {
 }
 
 // NewDeployment builds the specialize-pass component for every profile
-// setting that maps to a single registry-editing command. Returns nil when
-// none are set: an empty component is not emitted.
-// NewDeployment builds the specialize-pass component for every profile
 // setting that maps to a single registry-editing or script-running
 // command: system tweaks, the online-account bypass, System scripts,
 // DefaultUser scripts and the UserOnce RunOnce registration (in that
 // order). Returns nil when none are set: an empty component is not
 // emitted.
-func NewDeployment(tweaks profile.SystemTweaks, bypassOnlineAccountRequirement bool, passwordExpiration profile.PasswordExpirationSettings, accountLockout profile.AccountLockoutSettings, fileExplorer profile.FileExplorerSettings, personalization profile.PersonalizationSettings, removeApps []profile.RemovableApp, stickyKeys profile.StickyKeysSettings, lockKeys *profile.LockKeySettings, desktopIcons map[profile.DesktopIcon]bool, startFolders []profile.StartFolder, appLockerPolicyXML *string, useNarrator bool, computerNameScript *string, hidePowerShellWindows bool, arch profile.ProcessorArchitecture, visualEffects profile.VisualEffectsSettings, taskbarSearch profile.TaskbarSearchMode, startPins profile.StartPinsSettings, startTiles profile.StartTilesSettings, taskbarIcons profile.TaskbarIconsSettings, systemScripts, defaultUserScripts, userOnceScripts []profile.CustomScript) *Deployment {
+func NewDeployment(p *profile.Profile) *Deployment {
+	var (
+		tweaks                         = p.SystemTweaks
+		bypassOnlineAccountRequirement = p.BypassOnlineAccountRequirement
+		passwordExpiration             = p.PasswordExpiration
+		accountLockout                 = p.AccountLockout
+		fileExplorer                   = p.FileExplorer
+		personalization                = p.Personalization
+		removeApps                     = p.RemoveApps
+		stickyKeys                     = p.StickyKeys
+		lockKeys                       = p.LockKeys
+		desktopIcons                   = p.DesktopIcons
+		startFolders                   = p.StartFolders
+		appLockerPolicyXML             = p.AppLockerPolicyXML
+		useNarrator                    = p.UseNarrator
+		computerNameScript             = p.ComputerNameScript
+		hidePowerShellWindows          = p.HidePowerShellWindows
+		arch                           = p.ProcessorArchitecture
+		visualEffects                  = p.VisualEffects
+		taskbarSearch                  = p.TaskbarSearch
+		startPins                      = p.StartPins
+		startTiles                     = p.StartTiles
+		taskbarIcons                   = p.TaskbarIcons
+		systemScripts                  = p.SystemScripts
+		defaultUserScripts             = p.DefaultUserScripts
+		userOnceScripts                = p.UserOnceScripts
+	)
 	enabledCommands := []struct {
 		enabled bool
 		command string
@@ -377,10 +400,29 @@ type ShellSetupOOBE struct {
 	FirstLogonCommands *firstLogonCommands `xml:"FirstLogonCommands,omitempty"`
 }
 
-// NewShellSetupOOBE builds the oobeSystem-pass component from accounts,
-// firstLogon, express and wifi. It returns nil when there is nothing to
-// configure.
-func NewShellSetupOOBE(accounts []profile.UserAccount, firstLogon profile.FirstLogon, express profile.ExpressSettings, wifi *profile.WifiSettings, bypassOnlineAccountRequirement bool, removeApps []profile.RemovableApp, removeFeatures []profile.RemovableFeature, removeOptionalFeatures []profile.RemovableOptionalFeature, deleteHiddenJunctions bool, deleteWindowsOld bool, keepSensitiveFiles bool, installVMGuestTools []profile.VMGuestTool, obscurePasswords bool, hidePowerShellWindows bool, arch profile.ProcessorArchitecture, firstLogonScripts []profile.CustomScript, restartExplorerAfterScripts bool) *ShellSetupOOBE {
+// NewShellSetupOOBE builds the oobeSystem-pass component (accounts, auto-logon,
+// express settings, FirstLogonCommands) from p. It returns nil when there is
+// nothing to configure.
+func NewShellSetupOOBE(p *profile.Profile) *ShellSetupOOBE {
+	var (
+		accounts                       = p.Accounts
+		firstLogon                     = p.FirstLogon
+		express                        = p.ExpressSettings
+		wifi                           = p.Wifi
+		bypassOnlineAccountRequirement = p.BypassOnlineAccountRequirement
+		removeApps                     = p.RemoveApps
+		removeFeatures                 = p.RemoveFeatures
+		removeOptionalFeatures         = p.RemoveOptionalFeatures
+		deleteHiddenJunctions          = p.SystemTweaks.DeleteHiddenJunctions
+		deleteWindowsOld               = p.SystemTweaks.DeleteWindowsOld
+		keepSensitiveFiles             = p.KeepSensitiveFiles
+		installVMGuestTools            = p.InstallVMGuestTools
+		obscurePasswords               = p.ObscurePasswords
+		hidePowerShellWindows          = p.HidePowerShellWindows
+		arch                           = p.ProcessorArchitecture
+		firstLogonScripts              = p.FirstLogonScripts
+		restartExplorerAfterScripts    = p.RestartExplorerAfterScripts
+	)
 	var ua *userAccounts
 	if len(accounts) > 0 {
 		ua = &userAccounts{LocalAccounts: &localAccounts{}}

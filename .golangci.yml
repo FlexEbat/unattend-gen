@@ -1,7 +1,30 @@
+version: "2"
+
 linters:
-  disable-all: true
+  default: none
   enable:
+    - errcheck
+    - errorlint
+    - gosec
     - govet
+    - ineffassign
+    - misspell
     - staticcheck
     - unused
-    - errcheck
+  settings:
+    gosec:
+      excludes:
+        # The tool writes user-chosen paths by design; permissions are set
+        # explicitly (0600) in profile.WriteFileSecure.
+        - G304
+        # Heuristic that matches registry value names such as "Bypass...".
+        - G101
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+
+formatters:
+  enable:
+    - gofmt

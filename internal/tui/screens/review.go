@@ -1,8 +1,6 @@
 package screens
 
 import (
-	"os"
-
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/FlexEbat/unattend-gen/internal/profile"
@@ -62,7 +60,11 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				r.status = ""
 				return r, nil
 			}
-			path := r.profile.Name + ".json"
+			path, err := profile.ProfilePath(r.profile.Name)
+			if err != nil {
+				r.status = err.Error()
+				return r, nil
+			}
 			if err := profile.SaveProfile(r.profile, path); err != nil {
 				r.status = err.Error()
 			} else {
@@ -75,7 +77,7 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				r.status = ""
 				return r, nil
 			}
-			if err := os.WriteFile("autounattend.xml", []byte(r.xmlText), 0o644); err != nil {
+			if err := profile.WriteFileSecure("autounattend.xml", []byte(r.xmlText)); err != nil {
 				r.status = err.Error()
 			} else {
 				r.status = "saved autounattend.xml"
