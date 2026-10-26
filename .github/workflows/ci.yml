@@ -69,8 +69,19 @@ jobs:
 
       - name: govulncheck
         run: |
+          go version
           go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
-          govulncheck ./...
+          set +e
+          govulncheck ./... > vuln.log 2>&1
+          code=$?
+          set -e
+          cat vuln.log
+          if [ $code -ne 0 ]; then
+            grep -E "^(Vulnerability|  Found in|  Fixed in|    #)|Standard library|Module:" vuln.log | head -40 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit $code
+          fi
 
   cross-build:
     needs: gate
