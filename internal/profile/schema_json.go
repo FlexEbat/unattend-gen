@@ -49,7 +49,7 @@ type schemaMap = map[string]any
 func schemaFor(t reflect.Type, validateTag string) schemaMap {
 	rules := parseValidateTag(validateTag)
 
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		inner := schemaFor(t.Elem(), validateTag)
 		return schemaMap{"anyOf": []any{inner, schemaMap{"type": "null"}}}
 	}
