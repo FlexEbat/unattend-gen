@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -25,7 +26,20 @@ func newTUICmd() *cobra.Command {
 				initial = loaded
 			}
 
-			p := tea.NewProgram(tui.NewModel(initial))
+			var model tea.Model = tui.NewModel(initial)
+			// UNATTEND_GEN_TRACE=<file> logs message timings (never key text)
+			// to diagnose input lag; see tui.Tracer.
+			if path := os.Getenv("UNATTEND_GEN_TRACE"); path != "" {
+				// The path is chosen by the user on purpose (like -o); mode is 0600.
+				f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) //nolint:gosec // user-chosen trace path
+				if err != nil {
+					return fmt.Errorf("open trace file %s: %w", path, err)
+				}
+				defer func() { _ = f.Close() }()
+				model = tui.NewTracer(model, f)
+			}
+
+			p := tea.NewProgram(model)
 			if _, err := p.Run(); err != nil {
 				return fmt.Errorf("run tui: %w", err)
 			}
