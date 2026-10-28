@@ -18,6 +18,8 @@ type Model struct {
 	current screens.ID
 	screens map[screens.ID]tea.Model
 	err     string
+	size    tea.WindowSizeMsg
+	hasSize bool
 }
 
 // NewModel builds the root model. If initial is nil, a fresh profile with
@@ -66,6 +68,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
+	case tea.WindowSizeMsg:
+		// Remember it: only the active screen receives it below, so a screen
+		// shown later (Review) is told the size when it is created.
+		m.size, m.hasSize = msg, true
 	case screens.NavigateMsg:
 		return m.navigate(msg)
 	}
@@ -92,6 +98,9 @@ func (m Model) navigate(nav screens.NavigateMsg) (tea.Model, tea.Cmd) {
 	m.err = ""
 	m.current = nav.To
 	m.screens[m.current] = rebuildScreen(m.current, m.profile)
+	if m.hasSize {
+		m.screens[m.current], _ = m.screens[m.current].Update(m.size)
+	}
 	return m, m.screens[m.current].Init()
 }
 
