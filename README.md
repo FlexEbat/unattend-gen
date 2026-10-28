@@ -89,8 +89,14 @@ Requires Go 1.23+.
 ```sh
 git clone https://github.com/FlexEbat/unattend-gen.git
 cd unattend-gen
-go build -o unattend-gen ./cmd/unattend-gen
+make build            # builds ./unattend-gen and prints how to put it in PATH
+make install-user     # copies it to ~/.local/bin (no sudo)
+# or: make install    # copies it to /usr/local/bin (uses sudo if needed)
 ```
+
+Plain `go build -o unattend-gen ./cmd/unattend-gen` still works; the binary is then
+started as `./unattend-gen tui` from the repository directory (a freshly built binary
+is not in `PATH`). `make uninstall` removes the installed copies.
 
 Cross-compile for another OS with `GOOS`/`GOARCH`:
 
