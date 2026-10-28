@@ -55,36 +55,44 @@ func (m Model) Init() tea.Cmd {
 	return m.screens[m.current].Init()
 }
 
-// Update dispatches messages to the active screen and handles screen
-// switches. A switch to Review is gated by profile.ValidateProfile: an
-// invalid profile stays on the current screen instead.
+// Update dispatches messages to the active screen. Screen switches arrive as
+// screens.NavigateMsg through the normal bubbletea message loop; commands
+// returned by screens (cursor blink, ...) are handed back to bubbletea to run
+// asynchronously and are never executed here, because some of them block
+// (the text cursor's blink command sleeps ~500ms) and would freeze typing.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == "ctrl+c" {
-		return m, tea.Quit
-	}
-
-	active := m.screens[m.current]
-	updated, cmd := active.Update(msg)
-	m.screens[m.current] = updated
-
-	if nav, ok := extractNavigate(cmd); ok {
-		if nav.To == screens.ScreenReview {
-			if errs := screens.ValidateForReview(m.profile); len(errs) > 0 {
-				m.err = errs[0]
-				if er, ok := m.screens[m.current].(screens.ErrorReceiver); ok {
-					m.screens[m.current] = er.SetErrors(errs)
-				}
-				m.screens[screens.ScreenReview] = screens.NewReview(m.profile)
-				return m, nil
-			}
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
 		}
-		m.err = ""
-		m.current = nav.To
-		m.screens[m.current] = rebuildScreen(m.current, m.profile)
-		return m, m.screens[m.current].Init()
+	case screens.NavigateMsg:
+		return m.navigate(msg)
 	}
 
+	updated, cmd := m.screens[m.current].Update(msg)
+	m.screens[m.current] = updated
 	return m, cmd
+}
+
+// navigate switches the active screen. A switch to Review is gated by
+// profile.ValidateProfile: an invalid profile stays on the current screen
+// instead.
+func (m Model) navigate(nav screens.NavigateMsg) (tea.Model, tea.Cmd) {
+	if nav.To == screens.ScreenReview {
+		if errs := screens.ValidateForReview(m.profile); len(errs) > 0 {
+			m.err = errs[0]
+			if er, ok := m.screens[m.current].(screens.ErrorReceiver); ok {
+				m.screens[m.current] = er.SetErrors(errs)
+			}
+			m.screens[screens.ScreenReview] = screens.NewReview(m.profile)
+			return m, nil
+		}
+	}
+	m.err = ""
+	m.current = nav.To
+	m.screens[m.current] = rebuildScreen(m.current, m.profile)
+	return m, m.screens[m.current].Init()
 }
 
 // rebuildScreen reconstructs a screen from the current profile so it always
@@ -120,17 +128,6 @@ func rebuildScreen(id screens.ID, p *profile.Profile) tea.Model {
 	default:
 		return screens.NewReview(p)
 	}
-}
-
-// extractNavigate runs cmd, if any, and reports whether it produced a
-// screens.NavigateMsg.
-func extractNavigate(cmd tea.Cmd) (screens.NavigateMsg, bool) {
-	if cmd == nil {
-		return screens.NavigateMsg{}, false
-	}
-	msg := cmd()
-	nav, ok := msg.(screens.NavigateMsg)
-	return nav, ok
 }
 
 // View renders the active screen, plus a validation banner when the last

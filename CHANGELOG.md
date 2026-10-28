@@ -7,6 +7,12 @@ are listed per release.
 
 ### Fixed
 
+- The TUI was nearly unusable on screens with text fields: the root model ran
+  every command a screen returned synchronously (to look for a navigation
+  request), and the text cursor's blink command sleeps for about half a
+  second, so each keystroke froze the UI. Navigation now goes through the
+  normal message loop and commands are left to bubbletea to run in the
+  background (as a side effect the cursor blinks now).
 - Commands longer than Windows Setup's documented 259-character limit
   (`RunSynchronousCommand/Path`, `FirstLogonCommands/CommandLine`). Chains of
   `a && b` are split into one command per part; PowerShell commands are moved
@@ -25,6 +31,9 @@ are listed per release.
 
 ### Added
 
+- `make build` prints how to put the binary in `PATH`; new `make install`
+  (`/usr/local/bin`), `make install-user` (`~/.local/bin`, with a hint when
+  that directory is not in `PATH`) and `make uninstall` targets.
 - Validation: duplicate account names (case-insensitive), names reserved by
   Windows, names ending in a period or with edge spaces, duplicate list
   entries, whitespace-only scripts, WPA2 passphrases over 63 characters and

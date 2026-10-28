@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -54,10 +55,25 @@ func keyMsg(s string) tea.KeyMsg {
 
 func press(t *testing.T, m Model, key string) Model {
 	t.Helper()
-	next, _ := m.Update(keyMsg(key))
+	next, cmd := m.Update(keyMsg(key))
 	got, ok := next.(Model)
 	if !ok {
 		t.Fatalf("Update returned %T, want tui.Model", next)
+	}
+	// The real bubbletea loop runs returned commands and feeds their
+	// messages back into Update; do the same for navigation. Other commands
+	// (cursor blink) may block, so give each a short deadline.
+	if cmd != nil {
+		res := make(chan tea.Msg, 1)
+		go func() { res <- cmd() }()
+		select {
+		case msg := <-res:
+			if nav, ok := msg.(screens.NavigateMsg); ok {
+				next, _ = got.Update(nav)
+				got = next.(Model)
+			}
+		case <-time.After(20 * time.Millisecond):
+		}
 	}
 	return got
 }

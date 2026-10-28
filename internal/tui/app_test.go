@@ -14,6 +14,11 @@ import (
 	"github.com/FlexEbat/unattend-gen/internal/xmlgen"
 )
 
+// settle gives the bubbletea loop time to deliver a navigation message that a
+// previous key press produced before the next key is sent; screen switches go
+// through the message loop rather than being resolved inside Update.
+func settle() { time.Sleep(50 * time.Millisecond) }
+
 func chdir(t *testing.T, dir string) func() {
 	t.Helper()
 	old, err := os.Getwd()
@@ -41,8 +46,10 @@ func TestAppReviewMatchesGenerate(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // welcome: pick "New profile"
 	tm.Type("demo")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // submit name -> language screen
+	settle()
 
-	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR})                     // jump straight to review; defaults are valid
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR}) // jump straight to review; defaults are valid
+	settle()
 	tm.Send(tea.KeyMsg{Runes: []rune("x"), Type: tea.KeyRunes}) // export autounattend.xml
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
@@ -74,10 +81,13 @@ func TestAppInvalidValueBlocksReview(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // welcome: pick "New profile"
 	tm.Type("demo")
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter}) // submit name -> language screen
+	settle()
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN}) // language -> accounts (defaults valid)
+	settle()
 	tm.Type("this-computer-name-is-too-long")
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlR}) // attempt to jump to review
+	settle()
 
 	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
