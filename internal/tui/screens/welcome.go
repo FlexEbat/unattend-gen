@@ -1,11 +1,11 @@
 package screens
 
 import (
-	"fmt"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 	"github.com/FlexEbat/unattend-gen/internal/tui/widgets"
 )
@@ -61,18 +61,18 @@ func (w Welcome) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if w.creatingNew {
 				name := w.nameInput.Value()
 				if name == "" {
-					w.err = "введите имя профиля"
+					w.err = i18n.T("Enter a profile name")
 					return w, nil
 				}
 				// Fail now instead of at the very end (save), and never let a
 				// new profile silently replace an existing one.
 				path, err := profile.ProfilePath(name)
 				if err != nil {
-					w.err = err.Error()
+					w.err = i18n.Tf("Invalid profile name %q: it must not contain path separators", name)
 					return w, nil
 				}
 				if _, err := os.Stat(path); err == nil {
-					w.err = fmt.Sprintf("profile %q already exists: choose another name, or press Esc and pick it from the list", name)
+					w.err = i18n.Tf("Profile %q already exists: choose another name, or press Esc and pick it from the list", name)
 					return w, nil
 				}
 				w.profile.Name = name

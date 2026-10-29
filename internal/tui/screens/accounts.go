@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 	"github.com/FlexEbat/unattend-gen/internal/tui/widgets"
 )
@@ -166,7 +167,7 @@ func (a *Accounts) openForm(editing bool) {
 func (a *Accounts) submitForm() {
 	name := a.formName.Value()
 	if name == "" {
-		a.err = "имя учётной записи не может быть пустым"
+		a.err = i18n.T("Account name cannot be empty")
 		return
 	}
 	var display *string
@@ -186,7 +187,7 @@ func (a *Accounts) submitForm() {
 	if a.formEditing {
 		a.table.ReplaceSelected(account)
 	} else if !a.table.Add(account) {
-		a.err = "не более 5 учётных записей"
+		a.err = i18n.T("No more than 5 accounts")
 		return
 	}
 	a.formMode = false
@@ -300,9 +301,9 @@ func (a Accounts) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a Accounts) View() string {
 	if a.formMode {
 		out := a.formName.View() + "\n\n" + a.formDisplay.View() + "\n\n" + a.formPassword.View() + "\n\n" + a.formGroup.View()
-		out += "\n\nEnter: save | Esc: cancel"
+		out += "\n\n" + i18n.T("Enter: save | Esc: cancel")
 		if a.err != "" {
-			out += "\n" + a.err
+			out += "\n" + i18n.Display(a.err)
 		}
 		return out
 	}
@@ -313,7 +314,7 @@ func (a Accounts) View() string {
 		out += "\n\n" + a.adminPassword.View()
 	}
 	if a.err != "" {
-		out += "\n" + a.err
+		out += "\n" + i18n.Display(a.err)
 	}
 	out += "\n\n" + a.bar.View()
 	return out

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 	"regexp"
@@ -15,6 +14,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/go-playground/validator/v10"
+
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 )
 
 // ValidationResult is the outcome of ValidateProfile.
@@ -64,9 +65,9 @@ func ValidateProfile(data []byte) ValidationResult {
 	p, err := DecodeProfile(data)
 	if err != nil {
 		if msg := err.Error(); strings.HasPrefix(msg, "json: unknown field ") {
-			return ValidationResult{Errors: []string{"Неизвестное поле в профиле (опечатка?): " + strings.TrimPrefix(msg, "json: unknown field ")}}
+			return ValidationResult{Errors: []string{i18n.M("Неизвестное поле в профиле (опечатка?): %s", strings.TrimPrefix(msg, "json: unknown field "))}}
 		}
-		return ValidationResult{Errors: []string{"Профиль не является корректным JSON: " + err.Error()}}
+		return ValidationResult{Errors: []string{i18n.M("Профиль не является корректным JSON: %s", err.Error())}}
 	}
 
 	var errs []string
@@ -91,25 +92,25 @@ func ValidateProfile(data []byte) ValidationResult {
 	errs = append(errs, validateFirstLogon(p.FirstLogon, p.Accounts)...)
 	errs = append(errs, validateWifi(p.Wifi)...)
 	errs = append(errs, validateComputerNameScript(p.ComputerName, p.ComputerNameScript)...)
-	errs = append(errs, checkEnumList(p.RemoveApps, RemovableApps, "remove_apps", "Неизвестное приложение для удаления: ")...)
+	errs = append(errs, checkEnumList(p.RemoveApps, RemovableApps, "remove_apps", "Неизвестное приложение для удаления: %s")...)
 	errs = append(errs, validateDefaultUserScripts(p.DefaultUserScripts)...)
 	errs = append(errs, validateScripts("system_scripts", p.SystemScripts)...)
 	errs = append(errs, validateScripts("default_user_scripts", p.DefaultUserScripts)...)
 	errs = append(errs, validateScripts("first_logon_scripts", p.FirstLogonScripts)...)
 	errs = append(errs, validateScripts("user_once_scripts", p.UserOnceScripts)...)
-	errs = append(errs, checkEnumList(p.RemoveFeatures, RemovableFeatures, "remove_features", "Неизвестный компонент для удаления: ")...)
-	errs = append(errs, checkEnumList(p.RemoveOptionalFeatures, RemovableOptionalFeatures, "remove_optional_features", "Неизвестный необязательный компонент для удаления: ")...)
+	errs = append(errs, checkEnumList(p.RemoveFeatures, RemovableFeatures, "remove_features", "Неизвестный компонент для удаления: %s")...)
+	errs = append(errs, checkEnumList(p.RemoveOptionalFeatures, RemovableOptionalFeatures, "remove_optional_features", "Неизвестный необязательный компонент для удаления: %s")...)
 	errs = append(errs, validatePersonalization(p.Personalization)...)
 	errs = append(errs, validatePasswordExpiration(p.PasswordExpiration)...)
 	errs = append(errs, validateAccountLockout(p.AccountLockout)...)
 	errs = append(errs, validateStickyKeys(p.StickyKeys)...)
-	errs = append(errs, checkEnumMapKeys(p.DesktopIcons, DesktopIcons, "Неизвестный значок рабочего стола: ")...)
+	errs = append(errs, checkEnumMapKeys(p.DesktopIcons, DesktopIcons, "Неизвестный значок рабочего стола: %s")...)
 	errs = append(errs, validateVisualEffects(p.VisualEffects)...)
 	errs = append(errs, validateStartPins(p.StartPins)...)
 	errs = append(errs, validateStartTiles(p.StartTiles)...)
 	errs = append(errs, validateTaskbarIcons(p.TaskbarIcons)...)
-	errs = append(errs, checkEnumList(p.StartFolders, StartFolders, "start_folders", "Неизвестная папка для Start: ")...)
-	errs = append(errs, checkEnumList(p.InstallVMGuestTools, VMGuestTools, "install_vm_guest_tools", "Неизвестный набор гостевых дополнений ВМ: ")...)
+	errs = append(errs, checkEnumList(p.StartFolders, StartFolders, "start_folders", "Неизвестная папка для Start: %s")...)
+	errs = append(errs, checkEnumList(p.InstallVMGuestTools, VMGuestTools, "install_vm_guest_tools", "Неизвестный набор гостевых дополнений ВМ: %s")...)
 	errs = append(errs, validateAppLockerPolicyXML(p.AppLockerPolicyXML)...)
 
 	if len(errs) > 0 {
@@ -124,24 +125,24 @@ func structErrorMessage(fe validator.FieldError) string {
 	path := strings.TrimPrefix(fe.Namespace(), "Profile.")
 	switch path {
 	case "schema_version":
-		return "Поле schema_version должно быть равно 1"
+		return i18n.M("Поле schema_version должно быть равно 1")
 	case "name":
-		return "Имя профиля обязательно"
+		return i18n.M("Имя профиля обязательно")
 	}
 	switch fe.Tag() {
 	case "required":
-		return path + ": обязательное поле"
+		return i18n.M("%s: обязательное поле", path)
 	case "oneof":
-		return path + ": допустимые значения: " + strings.Join(strings.Fields(fe.Param()), ", ")
+		return i18n.M("%s: допустимые значения: %s", path, strings.Join(strings.Fields(fe.Param()), ", "))
 	case "max":
 		if fe.Kind() == reflect.Slice {
-			return path + ": не больше " + fe.Param() + " элементов"
+			return i18n.M("%s: не больше %s элементов", path, fe.Param())
 		}
-		return path + ": не больше " + fe.Param() + " символов"
+		return i18n.M("%s: не больше %s символов", path, fe.Param())
 	case "min":
-		return path + ": не меньше " + fe.Param() + " символов"
+		return i18n.M("%s: не меньше %s символов", path, fe.Param())
 	default:
-		return path + ": некорректное значение"
+		return i18n.M("%s: некорректное значение", path)
 	}
 }
 
@@ -153,11 +154,11 @@ func checkEnumList[T ~string](values, allowed []T, field, unknownMsg string) []s
 	seen := make(map[T]bool, len(values))
 	for _, v := range values {
 		if !slices.Contains(allowed, v) {
-			errs = append(errs, unknownMsg+string(v))
+			errs = append(errs, i18n.M(unknownMsg, string(v)))
 			continue
 		}
 		if seen[v] {
-			errs = append(errs, field+": значение "+string(v)+" указано больше одного раза")
+			errs = append(errs, i18n.M("%s: значение %s указано больше одного раза", field, string(v)))
 		}
 		seen[v] = true
 	}
@@ -175,7 +176,7 @@ func checkEnumMapKeys[K ~string, V any](m map[K]V, allowed []K, unknownMsg strin
 	sort.Strings(unknown)
 	errs := make([]string, len(unknown))
 	for i, k := range unknown {
-		errs[i] = unknownMsg + k
+		errs[i] = i18n.M(unknownMsg, k)
 	}
 	return errs
 }
@@ -183,13 +184,13 @@ func checkEnumMapKeys[K ~string, V any](m map[K]V, allowed []K, unknownMsg strin
 func validateLanguage(l LanguageSettings) []string {
 	var errs []string
 	if !bcp47Re.MatchString(l.UILanguage) {
-		errs = append(errs, "Язык интерфейса (ui_language) должен быть в формате BCP-47")
+		errs = append(errs, i18n.M("Язык интерфейса (ui_language) должен быть в формате BCP-47"))
 	}
 	if !bcp47Re.MatchString(l.Locale) {
-		errs = append(errs, "Региональный формат (locale) должен быть в формате BCP-47")
+		errs = append(errs, i18n.M("Региональный формат (locale) должен быть в формате BCP-47"))
 	}
 	if !bcp47Re.MatchString(l.KeyboardLayout) {
-		errs = append(errs, "Раскладка клавиатуры (keyboard_layout) должна быть в формате BCP-47")
+		errs = append(errs, i18n.M("Раскладка клавиатуры (keyboard_layout) должна быть в формате BCP-47"))
 	}
 	return errs
 }
@@ -199,11 +200,11 @@ func validateEdition(e EditionSettings) []string {
 	switch e.Mode {
 	case EditionModeGenericKey:
 		if e.Edition == nil {
-			errs = append(errs, "Для режима generic_key требуется указать edition")
+			errs = append(errs, i18n.M("Для режима generic_key требуется указать edition"))
 		}
 	case EditionModeCustomKey:
 		if e.ProductKey == nil || !productKeyRe.MatchString(*e.ProductKey) {
-			errs = append(errs, "Для режима custom_key требуется product_key вида XXXXX-XXXXX-XXXXX-XXXXX-XXXXX")
+			errs = append(errs, i18n.M("Для режима custom_key требуется product_key вида XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"))
 		}
 	}
 	return errs
@@ -214,7 +215,7 @@ func validateActivationKey(activationKey *string) []string {
 		return nil
 	}
 	if !productKeyRe.MatchString(*activationKey) {
-		return []string{"activation_key должен быть вида XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"}
+		return []string{i18n.M("activation_key должен быть вида XXXXX-XXXXX-XXXXX-XXXXX-XXXXX")}
 	}
 	return nil
 }
@@ -227,7 +228,7 @@ func validateTimezone(tz *string) []string {
 		return nil
 	}
 	if *tz == "" {
-		return []string{"Часовой пояс не может быть пустой строкой, используйте null"}
+		return []string{i18n.M("Часовой пояс не может быть пустой строкой, используйте null")}
 	}
 	return nil
 }
@@ -239,14 +240,14 @@ func validateComputerName(name *string) []string {
 	n := *name
 	var errs []string
 	if len(n) < 1 || len(n) > 15 {
-		errs = append(errs, "Имя компьютера длиннее 15 символов")
+		errs = append(errs, i18n.M("Имя компьютера длиннее 15 символов"))
 		return errs
 	}
 	if !computerNameRe.MatchString(n) {
-		errs = append(errs, "Имя компьютера содержит недопустимые символы или начинается/заканчивается дефисом")
+		errs = append(errs, i18n.M("Имя компьютера содержит недопустимые символы или начинается/заканчивается дефисом"))
 	}
 	if allDigitsRe.MatchString(n) {
-		errs = append(errs, "Имя компьютера не может состоять только из цифр")
+		errs = append(errs, i18n.M("Имя компьютера не может состоять только из цифр"))
 	}
 	return errs
 }
@@ -261,24 +262,24 @@ func validateAccounts(accounts []UserAccount) []string {
 			continue
 		}
 		if strings.ContainsAny(a.Name, accountNameForbidden) || strings.ContainsFunc(a.Name, unicode.IsControl) {
-			errs = append(errs, "Имя учётной записи "+a.Name+" содержит недопустимые символы")
+			errs = append(errs, i18n.M("Имя учётной записи %s содержит недопустимые символы", a.Name))
 		}
 		if strings.HasSuffix(a.Name, ".") {
-			errs = append(errs, "Имя учётной записи "+a.Name+" не может заканчиваться точкой")
+			errs = append(errs, i18n.M("Имя учётной записи %s не может заканчиваться точкой", a.Name))
 		}
 		if strings.TrimSpace(a.Name) != a.Name {
-			errs = append(errs, "Имя учётной записи "+a.Name+" не может начинаться или заканчиваться пробелом")
+			errs = append(errs, i18n.M("Имя учётной записи %s не может начинаться или заканчиваться пробелом", a.Name))
 		}
 		lower := strings.ToLower(a.Name)
 		if slices.Contains(reservedAccountNames, lower) {
-			errs = append(errs, "Имя учётной записи "+a.Name+" зарезервировано Windows")
+			errs = append(errs, i18n.M("Имя учётной записи %s зарезервировано Windows", a.Name))
 		}
 		if seen[lower] {
-			errs = append(errs, "Имя учётной записи "+a.Name+" указано больше одного раза (регистр не учитывается)")
+			errs = append(errs, i18n.M("Имя учётной записи %s указано больше одного раза (регистр не учитывается)", a.Name))
 		}
 		seen[lower] = true
 		if a.Password != nil && *a.Password == "" {
-			errs = append(errs, "Пароль учётной записи "+a.Name+" не может быть пустой строкой, используйте null")
+			errs = append(errs, i18n.M("Пароль учётной записи %s не может быть пустой строкой, используйте null", a.Name))
 		}
 	}
 	return errs
@@ -289,11 +290,11 @@ func validateFirstLogon(fl FirstLogon, accounts []UserAccount) []string {
 	switch fl.Mode {
 	case FirstLogonFirstCreatedAccount:
 		if len(accounts) == 0 {
-			errs = append(errs, "Режим first_created_account требует хотя бы одной учётной записи")
+			errs = append(errs, i18n.M("Режим first_created_account требует хотя бы одной учётной записи"))
 		}
 	case FirstLogonBuiltinAdmin:
 		if fl.BuiltinAdministratorPassword == nil || *fl.BuiltinAdministratorPassword == "" {
-			errs = append(errs, "Пароль обязателен для встроенной учётной записи Administrator")
+			errs = append(errs, i18n.M("Пароль обязателен для встроенной учётной записи Administrator"))
 		}
 	}
 	return errs
@@ -305,22 +306,22 @@ func validateWifi(w *WifiSettings) []string {
 	}
 	if w.RawProfileXML != nil {
 		if strings.TrimSpace(*w.RawProfileXML) == "" {
-			return []string{"raw_profile_xml не может быть пустой строкой (используйте null)"}
+			return []string{i18n.M("raw_profile_xml не может быть пустой строкой (используйте null)")}
 		}
 		return validateWellFormedXML(*w.RawProfileXML, "raw_profile_xml")
 	}
 	var errs []string
 	if len(w.SSID) < 1 || len(w.SSID) > 32 {
-		errs = append(errs, "SSID не может быть пустым и должен быть до 32 символов")
+		errs = append(errs, i18n.M("SSID не может быть пустым и должен быть до 32 символов"))
 	}
 	if w.Authentication == "" {
-		errs = append(errs, "authentication обязателен, если raw_profile_xml не задан")
+		errs = append(errs, i18n.M("authentication обязателен, если raw_profile_xml не задан"))
 	}
 	if w.Authentication != WifiOpen {
 		if w.Password == nil || len(*w.Password) < 8 {
-			errs = append(errs, "Пароль Wi-Fi обязателен и должен быть не короче 8 символов для WPA2/WPA3")
+			errs = append(errs, i18n.M("Пароль Wi-Fi обязателен и должен быть не короче 8 символов для WPA2/WPA3"))
 		} else if w.Authentication == WifiWPA2Personal && utf8.RuneCountInString(*w.Password) > 63 {
-			errs = append(errs, "Пароль Wi-Fi для WPA2 не может быть длиннее 63 символов")
+			errs = append(errs, i18n.M("Пароль Wi-Fi для WPA2 не может быть длиннее 63 символов"))
 		}
 	}
 	return errs
@@ -330,7 +331,7 @@ func validateDefaultUserScripts(scripts []CustomScript) []string {
 	var errs []string
 	for _, s := range scripts {
 		if s.Format == ScriptVbs {
-			errs = append(errs, "Скрипты DefaultUser не поддерживают формат .vbs")
+			errs = append(errs, i18n.M("Скрипты DefaultUser не поддерживают формат .vbs"))
 		}
 	}
 	return errs
@@ -341,7 +342,7 @@ func validatePasswordExpiration(s PasswordExpirationSettings) []string {
 		return nil
 	}
 	if s.Days == nil || *s.Days < 1 {
-		return []string{"Для custom-режима срока действия пароля нужно указать days >= 1"}
+		return []string{i18n.M("Для custom-режима срока действия пароля нужно указать days >= 1")}
 	}
 	return nil
 }
@@ -352,13 +353,13 @@ func validateAccountLockout(s AccountLockoutSettings) []string {
 	}
 	var errs []string
 	if s.Threshold == nil || *s.Threshold < 1 {
-		errs = append(errs, "Для custom-политики блокировки нужно указать threshold >= 1")
+		errs = append(errs, i18n.M("Для custom-политики блокировки нужно указать threshold >= 1"))
 	}
 	if s.WindowMinutes == nil || *s.WindowMinutes < 1 {
-		errs = append(errs, "Для custom-политики блокировки нужно указать window_minutes >= 1")
+		errs = append(errs, i18n.M("Для custom-политики блокировки нужно указать window_minutes >= 1"))
 	}
 	if s.DurationMinutes == nil || *s.DurationMinutes < 1 {
-		errs = append(errs, "Для custom-политики блокировки нужно указать duration_minutes >= 1")
+		errs = append(errs, i18n.M("Для custom-политики блокировки нужно указать duration_minutes >= 1"))
 	}
 	return errs
 }
@@ -366,10 +367,10 @@ func validateAccountLockout(s AccountLockoutSettings) []string {
 func validatePersonalization(s PersonalizationSettings) []string {
 	var errs []string
 	if s.AccentColor != nil && !hexColorRe.MatchString(*s.AccentColor) {
-		errs = append(errs, "accent_color должен быть 6 hex-цифрами, например FF8800")
+		errs = append(errs, i18n.M("accent_color должен быть 6 hex-цифрами, например FF8800"))
 	}
 	if s.SolidColorWallpaper != nil && !hexColorRe.MatchString(*s.SolidColorWallpaper) {
-		errs = append(errs, "solid_color_wallpaper должен быть 6 hex-цифрами, например 0078D4")
+		errs = append(errs, i18n.M("solid_color_wallpaper должен быть 6 hex-цифрами, например 0078D4"))
 	}
 	return errs
 }
@@ -378,14 +379,14 @@ func validateStickyKeys(s StickyKeysSettings) []string {
 	if s.Mode != StickyKeysModeCustom {
 		return nil
 	}
-	return checkEnumList(s.Flags, StickyKeysFlags, "sticky_keys.flags", "Неизвестный флаг Sticky Keys: ")
+	return checkEnumList(s.Flags, StickyKeysFlags, "sticky_keys.flags", "Неизвестный флаг Sticky Keys: %s")
 }
 
 func validateVisualEffects(s VisualEffectsSettings) []string {
 	if s.Mode != VisualEffectsModeCustom {
 		return nil
 	}
-	return checkEnumMapKeys(s.Custom, VisualEffects, "Неизвестный визуальный эффект: ")
+	return checkEnumMapKeys(s.Custom, VisualEffects, "Неизвестный визуальный эффект: %s")
 }
 
 func validateStartPins(s StartPinsSettings) []string {
@@ -393,10 +394,10 @@ func validateStartPins(s StartPinsSettings) []string {
 		return nil
 	}
 	if s.JSON == nil || strings.TrimSpace(*s.JSON) == "" {
-		return []string{"Для режима custom у start_pins требуется непустой json"}
+		return []string{i18n.M("Для режима custom у start_pins требуется непустой json")}
 	}
 	if !json.Valid([]byte(*s.JSON)) {
-		return []string{"start_pins.json не является валидным JSON"}
+		return []string{i18n.M("start_pins.json не является валидным JSON")}
 	}
 	return nil
 }
@@ -406,7 +407,7 @@ func validateStartTiles(s StartTilesSettings) []string {
 		return nil
 	}
 	if s.XML == nil || strings.TrimSpace(*s.XML) == "" {
-		return []string{"Для режима custom у start_tiles требуется непустой xml"}
+		return []string{i18n.M("Для режима custom у start_tiles требуется непустой xml")}
 	}
 	return validateWellFormedXML(*s.XML, "start_tiles.xml")
 }
@@ -416,7 +417,7 @@ func validateTaskbarIcons(s TaskbarIconsSettings) []string {
 		return nil
 	}
 	if s.XML == nil || strings.TrimSpace(*s.XML) == "" {
-		return []string{"Для режима custom у taskbar_icons требуется непустой xml"}
+		return []string{i18n.M("Для режима custom у taskbar_icons требуется непустой xml")}
 	}
 	return validateWellFormedXML(*s.XML, "taskbar_icons.xml")
 }
@@ -427,10 +428,10 @@ func validateComputerNameScript(computerName, computerNameScript *string) []stri
 	}
 	var errs []string
 	if computerName != nil {
-		errs = append(errs, "computer_name и computer_name_script нельзя задавать одновременно")
+		errs = append(errs, i18n.M("computer_name и computer_name_script нельзя задавать одновременно"))
 	}
 	if strings.TrimSpace(*computerNameScript) == "" {
-		errs = append(errs, "computer_name_script не может быть пустой строкой (используйте null)")
+		errs = append(errs, i18n.M("computer_name_script не может быть пустой строкой (используйте null)"))
 	}
 	return errs
 }
@@ -443,7 +444,7 @@ func validateWellFormedXML(xmlContent string, fieldName string) []string {
 			return nil
 		}
 		if err != nil {
-			return []string{fieldName + " не является валидным XML: " + err.Error()}
+			return []string{i18n.M("%s не является валидным XML: %s", fieldName, err.Error())}
 		}
 	}
 }
@@ -453,7 +454,7 @@ func validateAppLockerPolicyXML(policyXML *string) []string {
 		return nil
 	}
 	if strings.TrimSpace(*policyXML) == "" {
-		return []string{"applocker_policy_xml не может быть пустой строкой (используйте null)"}
+		return []string{i18n.M("applocker_policy_xml не может быть пустой строкой (используйте null)")}
 	}
 	return validateWellFormedXML(*policyXML, "applocker_policy_xml")
 }
@@ -464,7 +465,7 @@ func validateScripts(field string, scripts []CustomScript) []string {
 	var errs []string
 	for i, sc := range scripts {
 		if sc.Content != "" && strings.TrimSpace(sc.Content) == "" {
-			errs = append(errs, fmt.Sprintf("%s[%d]: содержимое скрипта не может состоять только из пробелов", field, i))
+			errs = append(errs, i18n.M("%s[%d]: содержимое скрипта не может состоять только из пробелов", field, i))
 		}
 	}
 	return errs

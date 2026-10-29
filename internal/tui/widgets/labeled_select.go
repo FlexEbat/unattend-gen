@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -13,7 +14,7 @@ type selectItem struct {
 }
 
 func (i selectItem) FilterValue() string { return i.Label }
-func (i selectItem) Title() string       { return i.Label }
+func (i selectItem) Title() string       { return i18n.T(i.Label) }
 func (i selectItem) Description() string { return "" }
 
 // LabeledSelect is a compact single-select list for an enum-typed field.
@@ -73,9 +74,9 @@ func (s LabeledSelect) Update(msg tea.Msg) (LabeledSelect, tea.Cmd) {
 
 // View renders the label, the list and, if set, the error line.
 func (s LabeledSelect) View() string {
-	out := labelStyle.Render(s.Label) + "\n" + s.options.View()
+	out := labelStyle.Render(i18n.T(s.Label)) + "\n" + s.options.View()
 	if s.Err != "" {
-		out += "\n" + errorStyle.Render(s.Err)
+		out += "\n" + errorStyle.Render(i18n.Display(s.Err))
 	}
 	return out
 }

@@ -5,6 +5,7 @@
 package widgets
 
 import (
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -27,7 +28,7 @@ type LabeledInput struct {
 // and placeholder.
 func NewLabeledInput(label, placeholder string) LabeledInput {
 	ti := textinput.New()
-	ti.Placeholder = placeholder
+	ti.Placeholder = i18n.T(placeholder)
 	ti.CharLimit = 256
 	return LabeledInput{Label: label, Input: ti}
 }
@@ -61,9 +62,9 @@ func (l LabeledInput) Update(msg tea.Msg) (LabeledInput, tea.Cmd) {
 
 // View renders the label, the input and, if set, the error line.
 func (l LabeledInput) View() string {
-	out := labelStyle.Render(l.Label) + "\n" + l.Input.View()
+	out := labelStyle.Render(i18n.T(l.Label)) + "\n" + l.Input.View()
 	if l.Err != "" {
-		out += "\n" + errorStyle.Render(l.Err)
+		out += "\n" + errorStyle.Render(i18n.Display(l.Err))
 	}
 	return out
 }

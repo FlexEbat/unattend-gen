@@ -3,6 +3,7 @@ package screens
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 	"github.com/FlexEbat/unattend-gen/internal/tui/widgets"
 )
@@ -170,7 +171,7 @@ func (d Desktop) View() string {
 			out += c.View(d.focus == 1+i) + "\n"
 		}
 	}
-	out += "\nPin folders on Start\n\n"
+	out += "\n" + i18n.T("Pin folders on Start") + "\n\n"
 	base := 1
 	if d.customizeIcons.Checked {
 		base += len(d.iconChecks)

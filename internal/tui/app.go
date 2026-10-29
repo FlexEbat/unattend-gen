@@ -7,6 +7,7 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 	"github.com/FlexEbat/unattend-gen/internal/tui/screens"
 )
@@ -144,7 +145,7 @@ func rebuildScreen(id screens.ID, p *profile.Profile) tea.Model {
 func (m Model) View() string {
 	out := m.screens[m.current].View()
 	if m.err != "" {
-		out += "\n\nCannot open review yet: " + m.err
+		out += "\n\n" + i18n.Tf("Cannot open review yet: %s", i18n.Display(m.err))
 	}
 	return out
 }

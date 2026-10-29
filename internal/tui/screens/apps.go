@@ -3,6 +3,7 @@ package screens
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 	"github.com/FlexEbat/unattend-gen/internal/tui/widgets"
 )
@@ -134,15 +135,15 @@ func (a Apps) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders every app, feature and optional-feature checkbox.
 func (a Apps) View() string {
-	out := "Remove preinstalled apps\n\n"
+	out := i18n.T("Remove preinstalled apps") + "\n\n"
 	for i, c := range a.appChecks {
 		out += c.View(a.focus == i) + "\n"
 	}
-	out += "\nRemove Windows features\n\n"
+	out += "\n" + i18n.T("Remove Windows features") + "\n\n"
 	for i, c := range a.featureChecks {
 		out += c.View(a.focus == len(a.appChecks)+i) + "\n"
 	}
-	out += "\nRemove legacy optional features\n\n"
+	out += "\n" + i18n.T("Remove legacy optional features") + "\n\n"
 	for i, c := range a.optionalFeatureChecks {
 		out += c.View(a.focus == len(a.appChecks)+len(a.featureChecks)+i) + "\n"
 	}

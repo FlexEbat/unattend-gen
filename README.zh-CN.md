@@ -95,6 +95,26 @@ unattend-gen tui demo.json     # 从已有的配置文件开始
 把得到的 `autounattend.xml` 放到 Windows 启动 U 盘的根目录（或在虚拟机中挂载为虚拟软盘/光盘），
 Windows 安装程序会自动识别并使用它。
 
+## 界面语言
+
+TUI 提供英语、俄语（Русский）、中文（简体中文）、西班牙语（Español）和印地语
+（हिन्दी）。每次启动 `unattend-gen tui` 时都会先询问使用哪种语言；所选语言不会被
+保存，系统区域设置（`LANG`）只决定预先选中哪一项。若要跳过该询问，请使用
+`--lang`（`en`、`ru`、`zh`、`es`、`hi`）或设置环境变量 `UNATTEND_GEN_LANG`：
+
+```sh
+unattend-gen tui --lang ru
+UNATTEND_GEN_LANG=zh unattend-gen validate demo.json
+```
+
+`--lang` 还会翻译 `validate` 和 `generate` 输出的校验错误与警告；不使用它时，
+CLI 的输出保持不变。命令名称、`--help` 文本、JSON 字段名以及生成的 XML 不会被翻译。
+
+> **关于翻译的说明。** 译文可能不够准确。它们并未经过每种语言母语者的审校，
+> 部分术语也可能与 Windows 界面的措辞不同。欢迎提交修正：文本位于
+> `internal/i18n/`（`ui.go` 为界面文本，`messages.go` 为配置文件校验消息）。
+> 中文和印地语需要支持 UTF-8 并带有合适字体的终端；Linux 纯文本控制台（TTY）无法显示这两种语言。
+
 ## 项目结构
 
 ```text

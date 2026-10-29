@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 	"github.com/FlexEbat/unattend-gen/internal/tui/widgets"
 	"github.com/FlexEbat/unattend-gen/internal/xmlgen"
@@ -99,7 +100,7 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err := profile.SaveProfile(r.profile, path); err != nil {
 			r.status = err.Error()
 		} else {
-			r.status = "saved " + path
+			r.status = i18n.Tf("saved %s", path)
 		}
 		return r, nil
 	case "x":
@@ -112,14 +113,14 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// file without asking.
 		if _, err := os.Stat(answerFileName); err == nil && !r.confirmOverwrite {
 			r.confirmOverwrite = true
-			r.status = answerFileName + " already exists: press x again to overwrite, any other key to cancel"
+			r.status = i18n.Tf("%s already exists: press x again to overwrite, any other key to cancel", answerFileName)
 			return r, nil
 		}
 		r.confirmOverwrite = false
 		if err := profile.WriteFileSecure(answerFileName, []byte(r.xmlText)); err != nil {
 			r.status = err.Error()
 		} else {
-			r.status = "saved " + answerFileName
+			r.status = i18n.Tf("saved %s", answerFileName)
 		}
 		return r, nil
 	}
@@ -135,7 +136,7 @@ func (r Review) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (r Review) View() string {
 	out := ""
 	if r.err != "" {
-		out = "Profile is not valid yet:\n" + r.err
+		out = i18n.T("Profile is not valid yet:") + "\n" + i18n.Display(r.err)
 	} else if r.sized {
 		out = r.vp.View()
 		if r.vp.TotalLineCount() > r.vp.Height {

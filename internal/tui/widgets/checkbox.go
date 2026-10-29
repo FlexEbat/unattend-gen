@@ -1,5 +1,7 @@
 package widgets
 
+import "github.com/FlexEbat/unattend-gen/internal/i18n"
+
 // Checkbox is a boolean field rendered as [x]/[ ]. The screen holding it
 // decides when it has focus and toggles Checked; Checkbox only renders.
 type Checkbox struct {
@@ -14,7 +16,7 @@ func (c Checkbox) View(focused bool) string {
 		box = "[x]"
 	}
 	if focused {
-		return "> " + box + " " + c.Label
+		return "> " + box + " " + i18n.T(c.Label)
 	}
-	return "  " + box + " " + c.Label
+	return "  " + box + " " + i18n.T(c.Label)
 }
