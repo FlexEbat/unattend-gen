@@ -113,6 +113,33 @@ Coloque el `autounattend.xml` resultante en la raíz de una memoria USB de arran
 disquete/CD virtual en una máquina virtual) y el programa de instalación de Windows lo recogerá
 automáticamente.
 
+## Idiomas de la interfaz
+
+La TUI está disponible en inglés, ruso (Русский), chino (简体中文), español
+(Español) e hindi (हिन्दी). Cada vez que se inicia `unattend-gen tui`, primero
+pregunta qué idioma usar; la elección no se guarda y la configuración regional
+(`LANG`) solo decide qué opción aparece preseleccionada. Para omitir la
+pregunta, use `--lang` (`en`, `ru`, `zh`, `es`, `hi`) o la variable
+`UNATTEND_GEN_LANG`:
+
+```sh
+unattend-gen tui --lang ru
+UNATTEND_GEN_LANG=zh unattend-gen validate demo.json
+```
+
+`--lang` también traduce los errores y avisos de validación que imprimen
+`validate` y `generate`. Sin esa opción, la salida de la CLI no cambia. Los
+nombres de comandos, el texto de `--help`, los nombres de campos JSON y el XML
+generado nunca se traducen.
+
+> **Nota sobre las traducciones.** Las traducciones pueden no ser precisas. No
+> las han revisado hablantes nativos de todos los idiomas y algunos términos
+> pueden diferir de la redacción de la interfaz de Windows. Las correcciones
+> son bienvenidas: los textos están en `internal/i18n/` (`ui.go` para la
+> interfaz y `messages.go` para los mensajes de validación del perfil). El
+> chino y el hindi requieren un terminal UTF-8 con una fuente adecuada; la
+> consola de texto de Linux (TTY) no puede mostrarlos.
+
 ## Estructura del proyecto
 
 ```text

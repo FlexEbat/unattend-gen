@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -16,7 +17,7 @@ type LabeledTextArea struct {
 // NewLabeledTextArea builds a text area with the given label and placeholder.
 func NewLabeledTextArea(label, placeholder string) LabeledTextArea {
 	ta := textarea.New()
-	ta.Placeholder = placeholder
+	ta.Placeholder = i18n.T(placeholder)
 	ta.SetHeight(6)
 	return LabeledTextArea{Label: label, Input: ta}
 }
@@ -50,9 +51,9 @@ func (l LabeledTextArea) Update(msg tea.Msg) (LabeledTextArea, tea.Cmd) {
 
 // View renders the label, the text area and, if set, the error line.
 func (l LabeledTextArea) View() string {
-	out := labelStyle.Render(l.Label) + "\n" + l.Input.View()
+	out := labelStyle.Render(i18n.T(l.Label)) + "\n" + l.Input.View()
 	if l.Err != "" {
-		out += "\n" + errorStyle.Render(l.Err)
+		out += "\n" + errorStyle.Render(i18n.Display(l.Err))
 	}
 	return out
 }

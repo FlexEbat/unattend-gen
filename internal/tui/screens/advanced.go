@@ -3,6 +3,7 @@ package screens
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 	"github.com/FlexEbat/unattend-gen/internal/tui/widgets"
 )
@@ -169,7 +170,7 @@ func (a Advanced) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the VM guest tools checkboxes, AppLocker/computer-name text
 // areas, and the three small setup-stage checkboxes.
 func (a Advanced) View() string {
-	out := "Install VM guest tools\n\n"
+	out := i18n.T("Install VM guest tools") + "\n\n"
 	for i, c := range a.vmToolChecks {
 		out += c.View(a.focus == i) + "\n"
 	}

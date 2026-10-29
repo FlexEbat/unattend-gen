@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 	"github.com/FlexEbat/unattend-gen/internal/tui"
 )
@@ -24,6 +25,17 @@ func newTUICmd() *cobra.Command {
 					return fmt.Errorf("load profile %s: %w", args[0], err)
 				}
 				initial = loaded
+			}
+
+			// Every start asks for the language unless --lang or
+			// UNATTEND_GEN_LANG already chose one. Screens are built after
+			// this point, so they come out in the chosen language.
+			if i18n.Current() == "" {
+				l, err := tui.PickLanguage(i18n.FromEnv())
+				if err != nil {
+					return err
+				}
+				i18n.Set(l)
 			}
 
 			var model tea.Model = tui.NewModel(initial)

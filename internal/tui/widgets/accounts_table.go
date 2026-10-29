@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -22,9 +23,9 @@ type AccountsTable struct {
 // NewAccountsTable builds an empty accounts table.
 func NewAccountsTable() AccountsTable {
 	cols := []table.Column{
-		{Title: "Name", Width: 20},
-		{Title: "Display name", Width: 20},
-		{Title: "Group", Width: 16},
+		{Title: i18n.T("Name"), Width: 20},
+		{Title: i18n.T("Display name"), Width: 20},
+		{Title: i18n.T("Group"), Width: 16},
 	}
 	t := table.New(
 		table.WithColumns(cols),

@@ -1,6 +1,10 @@
 package widgets
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
+)
 
 var hintStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("245")).
@@ -27,11 +31,11 @@ func (c ConfirmBar) View() string {
 		if i > 0 {
 			out += " | "
 		}
-		out += h
+		out += i18n.T(h)
 	}
 	rendered := hintStyle.Render(out)
 	if c.Message != "" {
-		rendered += "\n" + errorStyle.Render(c.Message)
+		rendered += "\n" + errorStyle.Render(i18n.Display(c.Message))
 	}
 	return rendered
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/FlexEbat/unattend-gen/internal/i18n"
 	"github.com/FlexEbat/unattend-gen/internal/profile"
 )
 
@@ -18,7 +19,7 @@ func newValidateCmd() *cobra.Command {
 			if _, err := readValidProfile(cmd, args[0]); err != nil {
 				return err
 			}
-			cmd.Println("профиль корректен")
+			cmd.Println(i18n.MD("профиль корректен"))
 			return nil
 		},
 	}
@@ -35,12 +36,12 @@ func readValidProfile(cmd *cobra.Command, path string) (*profile.Profile, error)
 	result := profile.ValidateProfile(data)
 	if len(result.Errors) > 0 {
 		for _, e := range result.Errors {
-			cmd.PrintErrln(e)
+			cmd.PrintErrln(i18n.Display(e))
 		}
 		return nil, errValidationFailed
 	}
 	for _, w := range result.Warnings {
-		cmd.PrintErrln("Предупреждение: " + w)
+		cmd.PrintErrln(i18n.MD("Предупреждение: %s", i18n.Display(w)))
 	}
 	return result.Profile, nil
 }
